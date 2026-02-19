@@ -13,19 +13,14 @@ const getProjectRoot = (): string => {
   }
 };
 
+// Use CSP frame-ancestors only (no X-Frame-Options) so Shoplazza can embed / and /admin; middleware sets frame-ancestors per path.
 const securityHeaders = [
-  { key: "X-Frame-Options", value: "DENY" },
   { key: "X-Content-Type-Options", value: "nosniff" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
 ];
 
-// Admin is embedded in Shoplazza iframe; omit X-Frame-Options so CSP frame-ancestors can allow *.myshoplaza.com
-const securityHeadersNoFrameOptions = securityHeaders.filter(
-  (h) => h.key !== "X-Frame-Options"
-);
-
-// Explicitly allow Shoplazza to embed root and admin (backup if middleware doesn't run for "/")
+// Headers for / and /admin: allow Shoplazza to embed (CSP frame-ancestors only; no X-Frame-Options).
 const frameAncestorsCsp = {
   key: "Content-Security-Policy",
   value: "frame-ancestors 'self' https://*.myshoplaza.com",
@@ -52,15 +47,15 @@ const nextConfig: NextConfig = {
     return [
       {
         source: "/",
-        headers: [...securityHeadersNoFrameOptions, frameAncestorsCsp],
+        headers: [...securityHeaders, frameAncestorsCsp],
       },
       {
         source: "/admin",
-        headers: [...securityHeadersNoFrameOptions, frameAncestorsCsp],
+        headers: [...securityHeaders, frameAncestorsCsp],
       },
       {
         source: "/admin/(.*)",
-        headers: [...securityHeadersNoFrameOptions, frameAncestorsCsp],
+        headers: [...securityHeaders, frameAncestorsCsp],
       },
       { source: "/(.*)", headers: securityHeaders },
     ];
