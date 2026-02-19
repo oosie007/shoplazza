@@ -7,6 +7,7 @@ This guide gets the app on GitHub and Vercel **without committing any secrets**.
 ## Before you start
 
 - **Never commit** `.env`, `.env.local`, or any file containing real `SHOPLAZZA_CLIENT_SECRET`, tokens, or database URLs.
+- **Never paste** real connection strings or API keys into the repo, this doc, or chat. If you did, **rotate those credentials now** (new DB password, new API key).
 - The repo is set up so only **`.env.example`** (placeholders only) is committed. Everything else is in `.gitignore`.
 
 ---
@@ -74,24 +75,31 @@ git push -u origin main
 
 ## Step 4: Database for Vercel (required)
 
-The app uses **SQLite** locally (`file:./dev.db`). Vercel’s serverless environment cannot use a local SQLite file, so you need a **hosted database**.
+**Local:** The app keeps using **SQLite** for testing: `DATABASE_URL="file:./dev.db"` in `.env.local`. No change to local workflow.
 
-**Option A – Vercel Postgres (simplest)**
+**Vercel:** Serverless cannot use a local file, so you need a **hosted Postgres** database. The app auto-detects: if `DATABASE_URL` starts with `postgres://`, `postgresql://`, or `prisma+postgres://`, it uses the Postgres schema and runs migrations.
 
-1. Go to [vercel.com](https://vercel.com) → your account → **Storage** → **Create Database** → **Postgres**.
-2. Create the DB and attach it to your project (or note the connection string for Step 6).
-3. You’ll get a `POSTGRES_URL` (or `DATABASE_URL`) to use in Step 6.
+**Option A – Prisma Postgres (Vercel / Prisma Data Platform)**
 
-**Option B – Neon / PlanetScale / other**
+1. In [Vercel](https://vercel.com) → your project → **Storage** → **Create Database** → choose **Prisma Postgres** (or use [Prisma Data Platform](https://prisma.io/data-platform) and connect to Vercel).
+2. Attach the database to your project. Vercel will add env vars such as:
+   - `DATABASE_URL` (direct Postgres URL)
+   - `POSTGRES_URL` (same)
+   - `PRISMA_DATABASE_URL` (Prisma Accelerate URL; use this if you use Accelerate)
+3. **Never paste these URLs into the repo, docs, or chat.** Add them only in **Vercel → Settings → Environment Variables**.
+4. Use **one** of them as `DATABASE_URL` in Vercel (see Step 6). If you use Prisma Accelerate, set `DATABASE_URL` to the `PRISMA_DATABASE_URL` value.
 
-1. Create a Postgres (or compatible) database.
-2. Copy the connection URL (e.g. `postgresql://user:pass@host/db?sslmode=require`).
-3. You’ll add it in Vercel as `DATABASE_URL` in Step 6.
+**Option B – Vercel Postgres (standard Postgres)**
 
-**Prisma:** For Postgres you must point Prisma at Postgres and run migrations. After adding the Postgres URL:
+1. [vercel.com](https://vercel.com) → **Storage** → **Create Database** → **Postgres**.
+2. Create and attach to the project; copy the connection URL only into Vercel env (never into code or docs).
 
-- In `prisma/schema.prisma`, set `provider = "postgresql"` (and keep `url = env("DATABASE_URL")`).
-- Run: `npx prisma migrate deploy` (or push) **before** or **after** first deploy (see Step 7).
+**Option C – Neon / other Postgres**
+
+1. Create a Postgres database and copy the URL (e.g. `postgresql://...?sslmode=require`).
+2. Add it only in Vercel as `DATABASE_URL` (Step 6).
+
+**Security:** If you ever pasted a real connection string or API key into the repo, a doc, or a chat, **rotate those credentials immediately** (new password, new API key) and never commit them.
 
 ---
 
@@ -113,50 +121,35 @@ Click **Deploy** once; it may fail until env vars and DB are set. You’ll fix t
 ## Step 6: Add environment variables in Vercel (no secrets in code)
 
 1. In Vercel, open your project → **Settings** → **Environment Variables**.
-2. Add each variable below. Use **Production** (and optionally Preview) as needed. **Never put these in the repo.**
+2. Add each variable below. Use **Production** (and optionally Preview) as needed. **Never put these in the repo or in docs.**
 
 | Name | Value | Notes |
 |------|--------|--------|
 | `SHOPLAZZA_CLIENT_ID` | Your app’s Client ID | Partner Center → CD_Insure → App settings |
 | `SHOPLAZZA_CLIENT_SECRET` | Your app’s Client Secret | **Secret** – never commit |
 | `NEXT_PUBLIC_APP_URL` | Your Vercel app URL | e.g. `https://your-project.vercel.app` (no trailing slash) |
-| `DATABASE_URL` | Postgres connection URL | From Step 4 (Vercel Postgres or Neon, etc.) |
+| `DATABASE_URL` | Postgres connection URL | From Step 4. Use the **direct** URL (`postgres://...` or `POSTGRES_URL`) **or** Prisma Accelerate URL (`PRISMA_DATABASE_URL`). Paste only in Vercel UI. |
 
-- For **NEXT_PUBLIC_APP_URL**: after the first deploy, Vercel gives you a URL like `https://xxx.vercel.app`. Set it there and redeploy if you had used a placeholder.
-- **Do not** add `SHOPLAZZA_DEV_TOKEN` or `SHOPLAZZA_DEV_STORE` unless you run the Shoplazza CLI against this project (they’re for local extension dev).
+- For **NEXT_PUBLIC_APP_URL**: after the first deploy, set it to your real Vercel URL and redeploy if needed.
+- **Do not** add `SHOPLAZZA_DEV_TOKEN` / `SHOPLAZZA_DEV_STORE` unless you run the Shoplazza CLI against this project.
 
 ---
 
-## Step 7: Switch Prisma to Postgres and deploy
+## Step 7: Deploy and run Postgres migrations
 
-1. In the project, set Prisma to use Postgres. In `prisma/schema.prisma`, set:
-   - `provider = "postgresql"` (instead of `"sqlite"`).
-2. Commit and push (no secrets in these changes):
-
-   ```bash
-   git add prisma/schema.prisma
-   git commit -m "Use Postgres for production"
-   git push
-   ```
-
-3. In Vercel, trigger a new deploy (e.g. **Deployments** → **Redeploy**).
-4. After deploy, run migrations against the **production** DB. Use the same `DATABASE_URL` Vercel uses (e.g. from Vercel Postgres dashboard or env):
+1. The repo already includes:
+   - **Local:** `prisma/schema.prisma` (SQLite) when `DATABASE_URL` is `file:./dev.db`.
+   - **Production:** `prisma/schema.postgres.prisma` (Postgres) when `DATABASE_URL` is a `postgres://` or `prisma+postgres://` URL.
+   - Build runs `prisma generate` with the correct schema from `DATABASE_URL`, then `next build`.
+2. In Vercel, trigger a deploy (e.g. **Deployments** → **Redeploy**). The build will use the Postgres schema because `DATABASE_URL` is set to your Postgres URL.
+3. **One-time:** Run migrations against the production DB. Use the **same** `DATABASE_URL` value you set in Vercel (paste it only in your terminal or a local `.env` that is not committed):
 
    ```bash
-   # One-time: run migrations (use the production DATABASE_URL from Vercel)
-   DATABASE_URL="postgresql://..." npx prisma migrate deploy
+   # From the project root; DATABASE_URL must be your production Postgres URL
+   npx prisma migrate deploy --schema=prisma/schema.postgres.prisma
    ```
 
-   If you don’t have migrations yet:
-
-   ```bash
-   npx prisma migrate dev --name init
-   git add prisma/migrations
-   git commit -m "Add initial migration"
-   git push
-   ```
-
-   Then run `npx prisma migrate deploy` with production `DATABASE_URL`.
+   Or, if your Vercel project is linked to Prisma Postgres, you can run migrations from the Vercel/Prisma dashboard. After that, the app will have the required tables.
 
 ---
 
@@ -187,10 +180,10 @@ Click **Deploy** once; it may fail until env vars and DB are set. You’ll fix t
 | 1 | Confirm no `.env` / `.env.local` committed; only `.env.example` is safe. |
 | 2 | Create a new GitHub repo (no README/.gitignore). |
 | 3 | `git init`, `git add .`, `git commit`, `git remote add origin`, `git push`. |
-| 4 | Create a hosted DB (Vercel Postgres or Neon, etc.). |
+| 4 | Create a hosted Postgres DB (Prisma Postgres / Vercel Postgres / Neon, etc.). Never paste connection strings in repo or docs. |
 | 5 | Import the GitHub repo in Vercel as a Next.js project. |
-| 6 | In Vercel, set `SHOPLAZZA_CLIENT_ID`, `SHOPLAZZA_CLIENT_SECRET`, `NEXT_PUBLIC_APP_URL`, `DATABASE_URL`. |
-| 7 | Set Prisma to `postgresql`, push, redeploy, run `prisma migrate deploy` with production `DATABASE_URL`. |
+| 6 | In Vercel, set `SHOPLAZZA_CLIENT_ID`, `SHOPLAZZA_CLIENT_SECRET`, `NEXT_PUBLIC_APP_URL`, `DATABASE_URL` (Postgres URL from Step 4). |
+| 7 | Redeploy; then run `npx prisma migrate deploy --schema=prisma/schema.postgres.prisma` with production `DATABASE_URL` once. |
 | 8 | In Partner Center, set App URL and Redirect URL to your Vercel domain. |
 | 9 | Test the app and verify no secrets are in GitHub. |
 
