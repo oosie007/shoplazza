@@ -70,8 +70,11 @@ export function middleware(request: NextRequest) {
 
   const response = NextResponse.next();
 
-  // Allow Shoplazza admin to embed our app (iframe); Shoplazza may load root "/" or "/admin"
-  const isEmbeddedAdmin = path === "/" || path.startsWith("/admin");
+  // Allow Shoplazza admin to embed our app (iframe). Shoplazza may embed "/", "/admin", or the App URL "/api/auth".
+  const isEmbeddedAdmin =
+    path === "/" ||
+    path.startsWith("/admin") ||
+    path.startsWith("/api/auth");
   const csp =
     cspBase.join("; ") +
     "; " +

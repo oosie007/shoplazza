@@ -46,18 +46,11 @@ const nextConfig: NextConfig = {
   ],
   async headers() {
     return [
-      {
-        source: "/",
-        headers: [...securityHeaders, frameAncestorsCsp],
-      },
-      {
-        source: "/admin",
-        headers: [...securityHeaders, frameAncestorsCsp],
-      },
-      {
-        source: "/admin/(.*)",
-        headers: [...securityHeaders, frameAncestorsCsp],
-      },
+      { source: "/", headers: [...securityHeaders, frameAncestorsCsp] },
+      { source: "/admin", headers: [...securityHeaders, frameAncestorsCsp] },
+      { source: "/admin/(.*)", headers: [...securityHeaders, frameAncestorsCsp] },
+      { source: "/api/auth", headers: [...securityHeaders, frameAncestorsCsp] },
+      { source: "/api/auth/(.*)", headers: [...securityHeaders, frameAncestorsCsp] },
       { source: "/(.*)", headers: securityHeaders },
     ];
   },
