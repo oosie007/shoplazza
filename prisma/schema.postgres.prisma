@@ -1,10 +1,11 @@
 // Production: Postgres (Vercel, Prisma Postgres, etc.). Use with DATABASE_URL or PRISMA_DATABASE_URL.
 // Local: keep using schema.prisma (SQLite) unless you set DATABASE_URL to a Postgres URL.
 
+// engineType = "client" uses a JS driver adapter (no Rust binary) so Vercel serverless finds the client without rhel-openssl-3.0.x.
 generator client {
-  provider      = "prisma-client"
-  output        = "../src/generated/prisma"
-  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+  provider   = "prisma-client"
+  output     = "../src/generated/prisma"
+  engineType = "client"
 }
 
 datasource db {
