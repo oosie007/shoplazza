@@ -84,6 +84,10 @@ export function middleware(request: NextRequest) {
   if (!isEmbeddedAdmin) {
     response.headers.set("X-Frame-Options", "DENY");
   }
+  // Prevent caching of root/admin so iframe always gets fresh headers (avoids stale frame-ancestors 'none')
+  if (isEmbeddedAdmin) {
+    response.headers.set("Cache-Control", "no-store, no-cache, must-revalidate");
+  }
   Object.entries(securityHeadersBase).forEach(([key, value]) => {
     response.headers.set(key, value);
   });
