@@ -76,7 +76,7 @@ export function middleware(request: NextRequest) {
     cspBase.join("; ") +
     "; " +
     (isEmbeddedAdmin
-      ? "frame-ancestors 'self' https://*.myshoplaza.com https://*.shoplazza.com https://partners.shoplazza.com https://*.shoplaza.com"
+      ? "frame-ancestors *"
       : "frame-ancestors 'none'");
 
   response.headers.set("Content-Security-Policy", csp);

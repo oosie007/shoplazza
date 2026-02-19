@@ -20,11 +20,11 @@ const securityHeaders = [
   { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
 ];
 
-// Headers for / and /admin: allow Shoplazza to embed. Parent frame may be *.myshoplaza.com or partners/angora.
+// Headers for / and /admin: allow Shoplazza to embed. Use * so any parent (nested iframes, angora, etc.) can embed; tighten to specific origins once parent is confirmed.
 const frameAncestorsCsp = {
   key: "Content-Security-Policy",
   value:
-    "frame-ancestors 'self' https://*.myshoplaza.com https://*.shoplazza.com https://partners.shoplazza.com https://*.shoplaza.com",
+    "frame-ancestors *",
 };
 
 const projectRoot = getProjectRoot();
