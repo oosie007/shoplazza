@@ -2,8 +2,9 @@
 // Local: keep using schema.prisma (SQLite) unless you set DATABASE_URL to a Postgres URL.
 
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider      = "prisma-client"
+  output        = "../src/generated/prisma"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
