@@ -206,13 +206,45 @@ This document breaks down building an **exact replica** of the Worry-Free Purcha
 
 ### Step 3.1 – Extension project and deploy
 
-1. **Create Checkout UI Extension**
-   - Use Shoplazza’s recommended way (e.g. `shoplazza-cli` or app project that includes an extension). Define the extension so it runs on the checkout page (target from Shoplazza docs).
+1. **Checkout extension in this repo**
+   - The repo includes a **Checkout UI Extension** in `checkout-extension/`:
+     - `extension.json` – Shoplazza config (`templateName: checkout`, `extensionName: cd-insure-item-protection`).
+     - `src/extension.js` – Calls `extend()` for `Checkout::ContactInformation::RenderAfter` and `Checkout::SectionPayment::RenderBefore`, injecting a container and loading your app’s `checkout-widget.js`.
+     - Set your app URL in `checkout-extension/config.js` (or env `APP_URL`), then run `npm run build:extension` from the repo root (or `cd checkout-extension && npm run build`).
 
-2. **Deploy**
-   - Extension must be deployed and linked to your app so that when the app is installed, the checkout UI is injected.
+2. **Deploy with Shoplazza CLI**
+   - Install CLI: `npm install -g shoplazza-cli`.
+   - Create/link extension: `shoplazza checkout create` (store URL + token from Apps → Manage Private Apps → Create App). Replace or merge with this project’s `extension.json` and built `dist/extension.js`.
+   - Local dev: `shoplazza checkout dev` → in browser console run `CheckoutAPI.extension.DEV_switchDevMode()`.
+   - Preview: `shoplazza checkout push`.
+   - Deploy: `shoplazza checkout deploy`. Or in Partner Center → your app → Checkout/Extensions, add and publish the extension.
 
-**Deliverable:** Extension runs in Shoplazza checkout.
+**Deliverable:** Extension runs in Shoplazza checkout; when the app is installed, the widget appears on Contact and Payment steps.
+
+---
+
+### Step 3.1b – Automatic display on every checkout step (Contact, Shipping, Payment)
+
+For the widget to **automatically** appear on the Contact Information and Shipping steps (like the competitor’s “Worry-Free Delivery”), the script must be **loaded on every checkout page**, not only when the customer reaches Payment.
+
+1. **How the script is loaded**
+   - **Option A (recommended):** Register a **Checkout UI Extension** in your Shoplazza app so Shoplazza injects your script on all checkout steps. In Partner Center → your app → Checkout / Extensions, add an extension that loads `https://<your-app-url>/checkout-widget.js` (and sets `CD_INSURE_APP_URL` and `SHOPLAZZA_SHOP_DOMAIN` if required).
+   - **Option B:** If Shoplazza allows “Additional scripts” or “Custom code” in **Store settings → Checkout**, the merchant can add:
+     ```html
+     <script>
+       window.CD_INSURE_APP_URL = 'https://<your-app-url>';
+       window.SHOPLAZZA_SHOP_DOMAIN = '<store>.myshoplazza.com';
+     </script>
+     <script src="https://<your-app-url>/checkout-widget.js" async></script>
+     ```
+   - **Option C:** Until the extension is approved or checkout scripts are configured, the widget only runs when you **manually** paste the script (or a loader that sets the globals and injects the script) in the browser console on the checkout page.
+
+2. **Widget behavior**
+   - The script derives the shop from `window.SHOPLAZZA_SHOP_DOMAIN` or, if missing, from `location.hostname`, so it can run as soon as the script is loaded.
+   - On **Contact Information** and **Shipping**, the widget prefers the **left column** (below the main form), matching the competitor’s placement. It retries mounting for a few seconds if the form isn’t in the DOM yet.
+   - **“Default at checkout”:** In Configuration, the merchant can enable “Default at checkout.” When that setting is on, the widget loads with the toggle **on** by default and applies the premium immediately.
+
+**Deliverable:** When the script is loaded by Shoplazza (extension or checkout script), the widget appears automatically on Contact, Shipping, and Payment; optional default-on behavior is configurable.
 
 ---
 

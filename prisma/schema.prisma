@@ -1,0 +1,51 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Store {
+  id          String        @id @default(cuid())
+  shopDomain  String        @unique
+  accessToken String
+  installedAt DateTime      @default(now())
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  settings    StoreSettings?
+}
+
+model StoreSettings {
+  id                    String   @id @default(cuid())
+  storeId               String   @unique
+  activated             Boolean  @default(false)
+  revenueShareTier      String   @default("5") // "5" or "15"
+  protectionPercent     Int      @default(5)
+  // Pricing configuration for widget
+  pricingMode           String   @default("fixed_percent_all") // "fixed_percent_all" | "per_category"
+  fixedPercentAll       Int      @default(5) // % of total cart or default for all categories
+  // Stored as JSON strings for SQLite compatibility.
+  // Example: "{\"cat123\":5,\"cat456\":10}"
+  categoryPercents      String   @default("{}") // JSON string: { [categoryId: string]: number }
+  // Example: "[\"cat999\",\"cat888\"]"
+  excludedCategoryIds   String   @default("[]") // JSON string: string[]
+
+  // Widget / checkout behaviour
+  widgetVariant         String   @default("B") // "A" | "B"
+  defaultAtCheckout    Boolean  @default(false)
+  checkoutPlacement     String   @default("regular") // "regular" | "checkout_plus"
+  enablePoweredByChubb  Boolean  @default(true)
+  offerAtCheckout       Boolean  @default(true)
+  claimPortalConfigured Boolean  @default(false)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+}

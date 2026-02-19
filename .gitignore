@@ -30,8 +30,16 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
+# env files – never commit secrets. .env.example is the only exception (safe template).
 .env*
+!.env.example
+.env.local
+
+# local store data (contains tokens)
+/data/
+
+# local sqlite db
+/dev.db
 
 # vercel
 .vercel
@@ -39,3 +47,13 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Prisma generated client (run: npx prisma generate)
+/src/generated/prisma
+
+# Checkout extension build and zip (may contain app URL)
+/checkout-extension/dist
+/checkout-extension/*.zip
+
+# Shoplazza CLI build output (when run from root)
+/dist
