@@ -1,8 +1,7 @@
 import { extend } from 'shoplazza-extension-ui';
 
-// App URL where checkout-widget.js is served. Must match .env.local NEXT_PUBLIC_APP_URL and be reachable (e.g. ngrok running).
-// If the widget doesn't appear: update this URL, restart "npm run dev:extension", then hard-refresh checkout.
-const APP_URL = 'https://cb35-102-204-245-19.ngrok-free.app';
+// App URL where checkout-widget.js is served. Set via npm run inject:extension-url (from .env.local NEXT_PUBLIC_APP_URL) or replace manually.
+const APP_URL = 'https://shoplazza-nu.vercel.app';
 
 const widgetHtml =
   '<div id="cd-insure-widget-root" style="margin-top:16px"></div>' +
