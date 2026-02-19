@@ -44,6 +44,7 @@ const nextConfig: NextConfig = {
   ],
   async headers() {
     return [
+      { source: "/", headers: securityHeadersNoFrameOptions },
       { source: "/admin", headers: securityHeadersNoFrameOptions },
       { source: "/admin/(.*)", headers: securityHeadersNoFrameOptions },
       { source: "/(.*)", headers: securityHeaders },
