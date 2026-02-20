@@ -398,6 +398,7 @@
               console.log("[CD Insure] Item Protection line added (200). Refetching price so Cart Transform total appears.");
             }
             refreshCheckoutPriceAfterCartChange();
+            setTimeout(function () { refreshCheckoutPriceAfterCartChange(); }, 1200);
           } else {
             debugLog("Cart API add failed " + (res ? res.status : "no res"), true);
             if (res && typeof console !== "undefined" && console.warn) {
