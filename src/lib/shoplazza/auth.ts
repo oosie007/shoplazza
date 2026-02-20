@@ -6,6 +6,8 @@ const clientSecret = process.env.SHOPLAZZA_CLIENT_SECRET!;
 /**
  * OAuth scopes – must match Shoplazza’s Access Scopes table exactly.
  * See: https://www.shoplazza.dev/reference/access-scopes-copy
+ * Note: The published scope list has no "function" scope; Cart Transform API 403 may need
+ * a different permission (e.g. write_price_rules) or Partner Center / support confirmation.
  */
 export const SCOPES = [
   "read_shop",
@@ -18,6 +20,7 @@ export const SCOPES = [
   "read_customer",
   "read_payment_info",
   "read_price_rules",
+  "write_price_rules",
 ].join(" ");
 
 /**
