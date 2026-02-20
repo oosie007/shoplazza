@@ -267,10 +267,16 @@
         credentials: "same-origin",
       }).then(function (res) {
         if (res && res.ok && hasCheckoutAPI && CheckoutAPI.store && typeof CheckoutAPI.store.onPricesChange === "function") {
-          try {
-            var prices = CheckoutAPI.store.getPrices && CheckoutAPI.store.getPrices();
-            if (prices) CheckoutAPI.store.onPricesChange(prices);
-          } catch (e) {}
+          res.clone().json().then(function (pricesFromServer) {
+            try {
+              if (pricesFromServer) CheckoutAPI.store.onPricesChange(pricesFromServer);
+            } catch (e) {}
+          }).catch(function () {
+            try {
+              var prices = CheckoutAPI.store.getPrices && CheckoutAPI.store.getPrices();
+              if (prices) CheckoutAPI.store.onPricesChange(prices);
+            } catch (e2) {}
+          });
         }
         return res;
       });
@@ -291,6 +297,34 @@
         return doPriceRequest();
       })
       .catch(function () { return doPriceRequest(); });
+  }
+
+  /**
+   * After Cart API add/remove, refetch price from store so Shoplazza runs Cart Transform
+   * and we push the new total to the checkout UI via onPricesChange.
+   */
+  function refreshCheckoutPriceAfterCartChange() {
+    var orderToken = getOrderToken();
+    if (!orderToken) return;
+    var payload = getPricePayload();
+    if (!payload) return;
+    var origin = getStoreOrigin();
+    setTimeout(function () {
+      fetch(origin + "/api/checkout/price", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        credentials: "same-origin",
+      }).then(function (res) {
+        if (res && res.ok && hasCheckoutAPI && CheckoutAPI.store && typeof CheckoutAPI.store.onPricesChange === "function") {
+          res.json().then(function (pricesFromServer) {
+            try {
+              if (pricesFromServer) CheckoutAPI.store.onPricesChange(pricesFromServer);
+            } catch (e) {}
+          }).catch(function () {});
+        }
+      }).catch(function () {});
+    }, 400);
   }
 
   /**
@@ -338,22 +372,9 @@
           if (res && res.ok) {
             debugLog("Cart API: added Item Protection line");
             if (typeof console !== "undefined" && console.log) {
-              console.log("[CD Insure] Item Protection line added (200). If total still does not include $40, Cart Transform may not be setting the price – check your app logs for [cart-transform].");
+              console.log("[CD Insure] Item Protection line added (200). Refetching price so Cart Transform total appears.");
             }
-            if (hasCheckoutAPI && CheckoutAPI.store && typeof CheckoutAPI.store.onPricesChange === "function") {
-              try {
-                var prices = CheckoutAPI.store.getPrices && CheckoutAPI.store.getPrices();
-                if (prices) CheckoutAPI.store.onPricesChange(prices);
-              } catch (e) {}
-            }
-            setTimeout(function () {
-              if (hasCheckoutAPI && CheckoutAPI.store && typeof CheckoutAPI.store.onPricesChange === "function") {
-                try {
-                  var p = CheckoutAPI.store.getPrices && CheckoutAPI.store.getPrices();
-                  if (p) CheckoutAPI.store.onPricesChange(p);
-                } catch (e) {}
-              }
-            }, 600);
+            refreshCheckoutPriceAfterCartChange();
           } else {
             debugLog("Cart API add failed " + (res ? res.status : "no res"), true);
             if (res && typeof console !== "undefined" && console.warn) {
@@ -404,12 +425,7 @@
       .then(function (res) {
         if (res && res.ok) {
           debugLog("Cart API: removed Item Protection line");
-          if (hasCheckoutAPI && CheckoutAPI.store && typeof CheckoutAPI.store.onPricesChange === "function") {
-            try {
-              var prices = CheckoutAPI.store.getPrices && CheckoutAPI.store.getPrices();
-              if (prices) CheckoutAPI.store.onPricesChange(prices);
-            } catch (e) {}
-          }
+          refreshCheckoutPriceAfterCartChange();
         }
       })
       .catch(function (err) {
