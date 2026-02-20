@@ -57,3 +57,6 @@ next-env.d.ts
 
 # Shoplazza CLI build output (when run from root)
 /dist
+
+# reference/demo only – not part of our app
+/Shoplazza-REFERENCE
