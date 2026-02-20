@@ -2,9 +2,13 @@
  * Create "Item Protection" product in the merchant store via Shoplazza OpenAPI
  * and bind our Cart Transform callback so the line's price is set dynamically.
  * Used on app install so merchants never create a product manually.
+ *
+ * Create Product: https://www.shoplazza.dev/reference/create-product-v2025-06
+ * POST https://{subdomain}.myshoplaza.com/openapi/2025-06/products
+ * Cart Transform remains under 2024-07.
  */
-
-const OPENAPI_VERSION = "2024-07";
+const PRODUCTS_OPENAPI_VERSION = "2025-06";
+const CART_TRANSFORM_OPENAPI_VERSION = "2024-07";
 
 function normalizeShop(shop: string): string {
   const s = shop.trim().toLowerCase();
@@ -41,7 +45,7 @@ export async function createItemProtectionProductWithError(
   accessToken: string
 ): Promise<CreateProductResult> {
   const host = normalizeShop(shop);
-  const url = `https://${host}/openapi/${OPENAPI_VERSION}/products`;
+  const url = `https://${host}/openapi/${PRODUCTS_OPENAPI_VERSION}/products`;
 
   const body = {
     title: "Item protection",
@@ -165,7 +169,7 @@ export async function bindCartTransform(
   callbackUrl: string
 ): Promise<boolean> {
   const host = normalizeShop(shop);
-  const url = `https://${host}/openapi/${OPENAPI_VERSION}/function/cart-transform`;
+  const url = `https://${host}/openapi/${CART_TRANSFORM_OPENAPI_VERSION}/function/cart-transform`;
 
   try {
     const res = await fetch(url, {
