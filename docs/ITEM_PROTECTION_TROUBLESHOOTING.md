@@ -52,11 +52,12 @@ If the **checkout page** shows one set of line items (e.g. “Legendary Whitetai
 
 You can ignore **pkg_set 404**. We don’t use that path; we use the Cart API (add/remove line) and Cart Transform (set price). The 404 is expected unless a checkout package is registered.
 
-### 5. Cart Transform (price stays $0)
+### 5. Cart Transform (price stays $0, total doesn’t include protection)
 
-If the Item Protection **line** appears in the cart but its **price stays 0**:
+If the Item Protection **line** is in the cart (you see it in the cart API response with price "0.00") but the **checkout total doesn’t include the $40**:
 
-- Our **Cart Transform** is supposed to set the line price. Check your **Vercel (or app) logs** for `[cart-transform]` when you load checkout or the cart. If that log never appears, Shoplazza is not calling our callback (bind may have failed or the store may not use it on checkout). If it does appear, the log shows the line id and the price we’re returning so you can confirm we’re updating the right line.
+- Our **Cart Transform** is supposed to set that line’s price. Check your **Vercel (or app) logs** for `[cart-transform]` when you load checkout or the cart. If that log **never** appears, Shoplazza is not calling our callback (bind may have failed or the store may not use it on checkout). If it **does** appear, the log shows the line id and the price we’re returning.
+- **pkg_set 404** is unrelated; we don’t use that. We use Cart API (add line) + Cart Transform (set price).
 
 ---
 

@@ -337,12 +337,23 @@
           }
           if (res && res.ok) {
             debugLog("Cart API: added Item Protection line");
+            if (typeof console !== "undefined" && console.log) {
+              console.log("[CD Insure] Item Protection line added (200). If total still does not include $40, Cart Transform may not be setting the price – check your app logs for [cart-transform].");
+            }
             if (hasCheckoutAPI && CheckoutAPI.store && typeof CheckoutAPI.store.onPricesChange === "function") {
               try {
                 var prices = CheckoutAPI.store.getPrices && CheckoutAPI.store.getPrices();
                 if (prices) CheckoutAPI.store.onPricesChange(prices);
               } catch (e) {}
             }
+            setTimeout(function () {
+              if (hasCheckoutAPI && CheckoutAPI.store && typeof CheckoutAPI.store.onPricesChange === "function") {
+                try {
+                  var p = CheckoutAPI.store.getPrices && CheckoutAPI.store.getPrices();
+                  if (p) CheckoutAPI.store.onPricesChange(p);
+                } catch (e) {}
+              }
+            }, 600);
           } else {
             debugLog("Cart API add failed " + (res ? res.status : "no res"), true);
             if (res && typeof console !== "undefined" && console.warn) {
