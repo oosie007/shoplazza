@@ -301,34 +301,41 @@ async function createFunctionWithCode(
   accessToken: string,
   payload: { name: string; code: string; runtime?: string }
 ): Promise<{ ok: true; id: string } | { ok: false; status: number; body: string }> {
-  const url = `https://${host}/openapi/${CART_TRANSFORM_OPENAPI_VERSION}/function`;
   const body = {
     name: payload.name,
     code: payload.code,
     runtime: payload.runtime ?? "javascript",
   };
-  const res = await fetch(url, {
-    method: "POST",
-    headers: cartTransformHeaders(accessToken),
-    body: JSON.stringify(body),
-  });
-  const text = await res.text();
-  if (!res.ok) {
-    console.warn("[item-protection-product] Create function failed:", res.status, text?.slice(0, 300));
-    return { ok: false, status: res.status, body: text };
-  }
-  try {
-    const data = text ? JSON.parse(text) : {};
-    const id = data?.id ?? data?.data?.id ?? data?.function_id ?? data?.data?.function_id;
-    if (id != null && typeof id === "string") {
-      console.info("[item-protection-product] Create function succeeded, id:", id);
-      return { ok: true, id };
+  const urlsToTry = [
+    `https://${host}/openapi/${CART_TRANSFORM_OPENAPI_VERSION}/function`,
+    `https://${host}/openapi/${CART_TRANSFORM_OPENAPI_VERSION}/function/cart-transform/`,
+  ];
+  for (const url of urlsToTry) {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: cartTransformHeaders(accessToken),
+      body: JSON.stringify(body),
+    });
+    const text = await res.text();
+    if (!res.ok) {
+      console.warn("[item-protection-product] Create function failed:", res.status, "URL:", url, "body:", text?.slice(0, 300));
+      if (res.status === 404 && urlsToTry.indexOf(url) < urlsToTry.length - 1) continue;
+      return { ok: false, status: res.status, body: text };
     }
-    console.warn("[item-protection-product] Create function response missing id:", text?.slice(0, 200));
-    return { ok: false, status: 500, body: text || "Response missing function id" };
-  } catch {
-    return { ok: false, status: 500, body: text };
+    try {
+      const data = text ? JSON.parse(text) : {};
+      const id = data?.id ?? data?.data?.id ?? data?.function_id ?? data?.data?.function_id;
+      if (id != null && typeof id === "string") {
+        console.info("[item-protection-product] Create function succeeded, id:", id, "URL:", url);
+        return { ok: true, id };
+      }
+      console.warn("[item-protection-product] Create function response missing id:", text?.slice(0, 200));
+      return { ok: false, status: 500, body: text || "Response missing function id" };
+    } catch {
+      return { ok: false, status: 500, body: text };
+    }
   }
+  return { ok: false, status: 404, body: "Create function returned 404 for all tried URLs" };
 }
 
 /**
@@ -349,7 +356,7 @@ async function bindCartTransformByFunctionId(
   });
   const text = await res.text();
   if (!res.ok) {
-    console.warn("[item-protection-product] Bind cart-transform failed:", res.status, text?.slice(0, 300));
+    console.warn("[item-protection-product] Bind cart-transform failed:", res.status, "URL:", url, "body:", text?.slice(0, 300));
     return { ok: false, status: res.status, body: text };
   }
   console.info("[item-protection-product] Bind cart-transform succeeded:", res.status);
