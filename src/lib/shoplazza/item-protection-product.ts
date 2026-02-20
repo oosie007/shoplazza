@@ -98,7 +98,7 @@ export async function createItemProtectionProductWithError(
         sku: "ITEM-PROTECTION",
       },
     ],
-    published: false,
+    published: true,
     requires_shipping: false,
   };
   const body = { product };
