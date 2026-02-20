@@ -6,8 +6,8 @@ import { shopParamSchema } from "@/lib/validation/schemas";
 /**
  * POST /api/admin/bind-cart-transform?shop=...
  *
- * Re-binds the Cart Transform function URL for the store. Use to test bind and see
- * the exact Shoplazza API response (so we can see why [cart-transform] is never called).
+ * Creates the Cart Transform function (uploaded JS code per Shoplazza docs) and binds it.
+ * No URL: we use Create Function + Bind with function_id.
  */
 export async function POST(request: NextRequest) {
   const shopParam = request.nextUrl.searchParams.get("shop") ?? "";
@@ -28,10 +28,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const base = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin;
-  const callbackUrl = `${base.replace(/\/$/, "")}/api/shoplazza/cart-transform`;
-
-  const result = await bindCartTransformWithResult(shop, store.accessToken, callbackUrl);
+  const result = await bindCartTransformWithResult(shop, store.accessToken);
 
   if (result.ok) {
     return NextResponse.json({ ok: true, message: "Cart Transform bound successfully" });

@@ -93,6 +93,17 @@ So the flow is:
 
 Result: merchants never create a product; we create one and use Cart API + Cart Transform to add the line and set its price so cart totals update correctly.
 
+## What the tutorial actually requires (we may have skipped it)
+
+The [Tutorial of Function and Function API](https://www.shoplazza.dev/v2024.07/reference/function-execution-logic) describes:
+
+1. **Create Function** – You **register/upload** a function. The function is **JavaScript** that runs in Shoplazza's environment using **Javy** (stdin → process → stdout). So you provide **code**, not an HTTP URL. The doc says functions **cannot call external servers**; all logic must use the cart (and metafields).
+2. **Bind Cart Transform** – You bind that **created function** (by its id) to the cart-transform hook.
+
+**What we did instead:** We built an **HTTP endpoint** (`/api/shoplazza/cart-transform`) and tried to **bind that URL** (direct bind or Create Function with `{ url: callbackUrl }`). We never uploaded any function code. So either Shoplazza also supports remote URL functions (and 403/483 is scope/permission), or we must upload our logic as Javy-compatible JS via Create Function, then bind that function's id.
+
+**Next steps:** (1) Confirm with Shoplazza whether Bind can take an external **URL** or only a **function id**. (2) If only function id, get the exact Create Function request body (e.g. `code`, `runtime`, or file upload) and implement our logic as uploadable JS, then Create → Bind.
+
 ## What we need from the Shoplazza docs
 
 - **Exact request body for “Bind Cart Transform Function”** (e.g. do we send a callback URL, or function code, or a function ID?).  
@@ -106,7 +117,7 @@ Result: merchants never create a product; we create one and use Cart API + Cart 
 | Step | Where | What |
 |------|--------|------|
 | **Create “Item Protection” product** | On install: `src/app/api/auth/callback/route.ts` | After OAuth, if store has no `itemProtectionProductId`, we call `createItemProtectionProduct(shop, accessToken)` from `src/lib/shoplazza/item-protection-product.ts`, which POSTs to `https://{shop}/openapi/2024-07/products` with title "Item protection", one variant at price 0, `published: false`. We then save `productId` and `variantId` in `StoreSettings`. |
-| **Bind Cart Transform** | Same flow, right after saving ids | We call `bindCartTransform(shop, accessToken, callbackUrl)` with `callbackUrl = {APP_URL}/api/shoplazza/cart-transform`. That POSTs to `https://{shop}/openapi/2024-07/function/cart-transform` with `function_url` / `url` in the body. If the Bind API expects a different body, adjust in `item-protection-product.ts`. |
+| **Create Function + Bind** | Same flow, right after saving ids | `createAndBindCartTransformFunction(shop, accessToken)`: (1) Create Function – POST `.../openapi/2024-07/function` with `{ name, code, runtime: "javascript" }`, get `id`. (2) Bind – POST `.../function/cart-transform` with `{ function_id: id }`. No URL. |
 | **Add/remove line when widget toggles** | `public/checkout-widget.js` | Existing `applyPremiumViaCartAPI(enabled)` uses Cart API to add (POST /api/cart) or remove (GET cart, then DELETE /api/cart/{variant_id}) the Item Protection product. No price is sent; the line is added/removed only. |
 | **Set the line’s price** | `src/app/api/shoplazza/cart-transform/route.ts` | When Shoplazza calls our callback with the cart, we find the line whose `product_id` matches `itemProtectionProductId`, compute premium = (other lines’ subtotal) × `fixedPercentAll` / 100, and return `operations.update` with that line’s `id` and `adjustment_fixed_price`. |
 

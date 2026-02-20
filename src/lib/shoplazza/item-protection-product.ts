@@ -1,14 +1,85 @@
 /**
  * Create "Item Protection" product in the merchant store via Shoplazza OpenAPI
- * and bind our Cart Transform callback so the line's price is set dynamically.
- * Used on app install so merchants never create a product manually.
+ * and register a Cart Transform function (per Shoplazza docs: Create Function with
+ * uploaded code, then Bind Cart Transform with function_id). No external URL.
  *
  * Create Product: https://www.shoplazza.dev/reference/create-product-v2025-06
- * POST https://{subdomain}.myshoplaza.com/openapi/2025-06/products
- * Cart Transform remains under 2024-07.
+ * Function API: https://www.shoplazza.dev/v2024.07/reference/function-execution-logic
+ * Create Function: POST .../openapi/2024-07/function (body: name, code, runtime)
+ * Bind Cart Transform: POST .../openapi/2024-07/function/cart-transform (body: function_id)
  */
 const PRODUCTS_OPENAPI_VERSION = "2025-06";
 const CART_TRANSFORM_OPENAPI_VERSION = "2024-07";
+
+/**
+ * Javy-compatible JavaScript for Cart Transform. Reads cart JSON from stdin,
+ * finds the "Item protection" line (by product title), gets percent from
+ * product metafield cd_insure.percent or default 20, computes premium and
+ * writes operations JSON to stdout. No external calls; ECMAScript 2020 sync only.
+ * @see https://www.shoplazza.dev/v2024.07/reference/function-execution-logic
+ */
+const CART_TRANSFORM_FUNCTION_CODE = `
+function readInput() {
+  var chunkSize = 1024;
+  var inputChunks = [];
+  var totalBytes = 0;
+  while (1) {
+    var buffer = new Uint8Array(chunkSize);
+    var bytesRead = Javy.IO.readSync(0, buffer);
+    totalBytes += bytesRead;
+    if (bytesRead === 0) break;
+    inputChunks.push(buffer.subarray(0, bytesRead));
+  }
+  var combined = new Uint8Array(totalBytes);
+  var offset = 0;
+  for (var i = 0; i < inputChunks.length; i++) {
+    combined.set(inputChunks[i], offset);
+    offset += inputChunks[i].length;
+  }
+  return JSON.parse(new TextDecoder().decode(combined));
+}
+function writeOutput(obj) {
+  var json = JSON.stringify(obj);
+  var bytes = new TextEncoder().encode(json);
+  Javy.IO.writeSync(1, bytes);
+}
+var input = readInput();
+var cart = input.cart || {};
+var lineItems = cart.line_items || [];
+var protectionLineId = null;
+var subtotalOther = 0;
+var percent = 20;
+for (var i = 0; i < lineItems.length; i++) {
+  var line = lineItems[i];
+  var product = line.product || {};
+  var title = (product.title || product.product_title || "").trim();
+  if (title === "Item protection") {
+    protectionLineId = String(line.id || line.item_id || "");
+    var mfs = product.metafields || [];
+    for (var j = 0; j < mfs.length; j++) {
+      if (mfs[j].namespace === "cd_insure" && mfs[j].key === "percent") {
+        var v = parseFloat(mfs[j].value);
+        if (!isNaN(v) && v >= 0 && v <= 100) percent = v;
+        break;
+      }
+    }
+  } else {
+    var price = parseFloat(product.price || product.price_amount || line.price || line.final_price || "0") || 0;
+    var qty = parseInt(String(line.quantity || "1"), 10) || 1;
+    subtotalOther += price * qty;
+  }
+}
+var result = { operations: { update: [] } };
+if (protectionLineId) {
+  var premium = Math.round(subtotalOther * percent / 100 * 100) / 100;
+  premium = Math.max(0, Math.min(999999999, premium));
+  result.operations.update.push({
+    id: protectionLineId,
+    price: { adjustment_fixed_price: premium.toFixed(2) }
+  });
+}
+writeOutput(result);
+`;
 
 function normalizeShop(shop: string): string {
   const s = shop.trim().toLowerCase();
@@ -203,11 +274,10 @@ export async function ensureItemProtectionProductWithError(
       itemProtectionVariantId: created.variantId,
     },
   });
-  const callbackUrl = `${callbackBaseUrl.replace(/\/$/, "")}/api/shoplazza/cart-transform`;
-  const bindResult = await bindCartTransformWithResult(shop, accessToken, callbackUrl);
+  const bindResult = await createAndBindCartTransformFunction(shop, accessToken);
   if (!bindResult.ok) {
     const detail = "status" in bindResult ? `${bindResult.status} ${bindResult.body}` : bindResult.error;
-    console.warn("[item-protection-product] Cart Transform bind failed; product was created and IDs saved.", detail);
+    console.warn("[item-protection-product] Cart Transform create/bind failed; product was created and IDs saved.", detail);
   }
   return created;
 }
@@ -221,126 +291,105 @@ const cartTransformHeaders = (accessToken: string) => ({
   Authorization: `Bearer ${accessToken}`,
 });
 
-/** List current cart-transform bindings. GET .../function/cart-transform/ */
-async function listCartTransformBindings(
-  host: string,
-  accessToken: string
-): Promise<{ ok: true; data: unknown } | { ok: false; status: number; body: string }> {
-  const url = `https://${host}/openapi/${CART_TRANSFORM_OPENAPI_VERSION}/function/cart-transform/`;
-  const res = await fetch(url, { method: "GET", headers: cartTransformHeaders(accessToken) });
-  const text = await res.text();
-  if (!res.ok) return { ok: false, status: res.status, body: text };
-  let data: unknown;
-  try {
-    data = text ? JSON.parse(text) : null;
-  } catch {
-    data = text;
-  }
-  return { ok: true, data };
-}
-
-/** Create Function (Function API). POST .../function. Returns function id if supported. */
-async function createFunction(
+/**
+ * Create Function (Function API). POST .../openapi/2024-07/function
+ * Body: { name, code, runtime }. Returns function id from response.
+ * @see https://www.shoplazza.dev/v2024.07/reference/create-function
+ */
+async function createFunctionWithCode(
   host: string,
   accessToken: string,
-  callbackUrl: string
-): Promise<{ ok: true; id: string } | { ok: false; status: number; body: string } | null> {
+  payload: { name: string; code: string; runtime?: string }
+): Promise<{ ok: true; id: string } | { ok: false; status: number; body: string }> {
   const url = `https://${host}/openapi/${CART_TRANSFORM_OPENAPI_VERSION}/function`;
+  const body = {
+    name: payload.name,
+    code: payload.code,
+    runtime: payload.runtime ?? "javascript",
+  };
   const res = await fetch(url, {
     method: "POST",
     headers: cartTransformHeaders(accessToken),
-    body: JSON.stringify({ url: callbackUrl }),
+    body: JSON.stringify(body),
   });
   const text = await res.text();
-  if (res.status === 404) return null;
-  if (!res.ok) return { ok: false, status: res.status, body: text };
+  if (!res.ok) {
+    console.warn("[item-protection-product] Create function failed:", res.status, text?.slice(0, 300));
+    return { ok: false, status: res.status, body: text };
+  }
   try {
     const data = text ? JSON.parse(text) : {};
-    const id = data?.id ?? data?.data?.id ?? data?.function_id;
-    if (id && typeof id === "string") return { ok: true, id };
+    const id = data?.id ?? data?.data?.id ?? data?.function_id ?? data?.data?.function_id;
+    if (id != null && typeof id === "string") {
+      console.info("[item-protection-product] Create function succeeded, id:", id);
+      return { ok: true, id };
+    }
+    console.warn("[item-protection-product] Create function response missing id:", text?.slice(0, 200));
+    return { ok: false, status: 500, body: text || "Response missing function id" };
   } catch {
-    // ignore
+    return { ok: false, status: 500, body: text };
   }
-  return null;
 }
 
 /**
- * Bind our Cart Transform function URL so Shoplazza calls us when the cart is used.
- * Per [Tutorial of Function and Function API](https://www.shoplazza.dev/v2024.07/reference/function-execution-logic):
- * we try (1) Create Function then bind by function_id, (2) direct bind with url / function_url.
- * Bind reference: POST .../function/cart-transform (no trailing slash).
+ * Bind Cart Transform with a function id. POST .../openapi/2024-07/function/cart-transform
+ * Body: { function_id: string }
+ * @see https://www.shoplazza.dev/v2024.07/reference/bind-cart-transform-function
  */
-export async function bindCartTransform(
-  shop: string,
+async function bindCartTransformByFunctionId(
+  host: string,
   accessToken: string,
-  callbackUrl: string
-): Promise<boolean> {
-  const result = await bindCartTransformWithResult(shop, accessToken, callbackUrl);
+  functionId: string
+): Promise<{ ok: true } | { ok: false; status: number; body: string }> {
+  const url = `https://${host}/openapi/${CART_TRANSFORM_OPENAPI_VERSION}/function/cart-transform`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: cartTransformHeaders(accessToken),
+    body: JSON.stringify({ function_id: functionId }),
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    console.warn("[item-protection-product] Bind cart-transform failed:", res.status, text?.slice(0, 300));
+    return { ok: false, status: res.status, body: text };
+  }
+  console.info("[item-protection-product] Bind cart-transform succeeded:", res.status);
+  return { ok: true };
+}
+
+/**
+ * Create the Item Protection cart-transform function (upload code) and bind it.
+ * This is the flow from the docs: Create Function → Bind Cart Transform with function_id.
+ */
+export async function createAndBindCartTransformFunction(
+  shop: string,
+  accessToken: string
+): Promise<BindCartTransformResult> {
+  const host = normalizeShop(shop);
+  const created = await createFunctionWithCode(host, accessToken, {
+    name: "item-protection-cart-transform",
+    code: CART_TRANSFORM_FUNCTION_CODE,
+    runtime: "javascript",
+  });
+  if (!created.ok) {
+    return { ok: false, status: created.status, body: created.body };
+  }
+  const bindResult = await bindCartTransformByFunctionId(host, accessToken, created.id);
+  if (!bindResult.ok) {
+    return { ok: false, status: bindResult.status, body: bindResult.body };
+  }
+  return { ok: true };
+}
+
+/** @deprecated Use createAndBindCartTransformFunction. Kept for API compatibility. */
+export async function bindCartTransform(shop: string, accessToken: string, _callbackUrl?: string): Promise<boolean> {
+  const result = await createAndBindCartTransformFunction(shop, accessToken);
   return result.ok;
 }
 
 export async function bindCartTransformWithResult(
   shop: string,
   accessToken: string,
-  callbackUrl: string
+  _callbackUrl?: string
 ): Promise<BindCartTransformResult> {
-  const host = normalizeShop(shop);
-  const baseUrl = `https://${host}/openapi/${CART_TRANSFORM_OPENAPI_VERSION}/function/cart-transform`;
-
-  const listResult = await listCartTransformBindings(host, accessToken);
-  if (listResult.ok) {
-    console.info("[item-protection-product] Cart transform list:", JSON.stringify(listResult.data).slice(0, 300));
-  } else {
-    console.info("[item-protection-product] Cart transform list:", listResult.status, listResult.body?.slice(0, 200));
-  }
-
-  const created = await createFunction(host, accessToken, callbackUrl);
-  if (created?.ok === true) {
-    const bindRes = await fetch(baseUrl, {
-      method: "POST",
-      headers: cartTransformHeaders(accessToken),
-      body: JSON.stringify({ function_id: created.id }),
-    });
-    const bindText = await bindRes.text();
-    if (bindRes.ok) {
-      console.info("[item-protection-product] Bind cart-transform (via function_id) succeeded:", bindRes.status, bindText.slice(0, 200));
-      return { ok: true };
-    }
-    console.warn("[item-protection-product] Bind with function_id failed:", bindRes.status, bindText);
-    return { ok: false, status: bindRes.status, body: bindText || "(empty response body)" };
-  }
-  if (created && !created.ok) {
-    console.warn("[item-protection-product] Create function failed:", created.status, created.body?.slice(0, 200));
-  }
-
-  const bodiesToTry: Record<string, unknown>[] = [
-    { url: callbackUrl },
-    { function_url: callbackUrl },
-    { function_url: callbackUrl, url: callbackUrl },
-  ];
-
-  for (const body of bodiesToTry) {
-    try {
-      const res = await fetch(baseUrl, {
-        method: "POST",
-        headers: cartTransformHeaders(accessToken),
-        body: JSON.stringify(body),
-      });
-      const text = await res.text();
-      if (res.ok) {
-        console.info("[item-protection-product] Bind cart-transform succeeded:", res.status, text.slice(0, 200));
-        return { ok: true };
-      }
-      console.warn("[item-protection-product] Bind attempt:", res.status, text?.slice(0, 200), "body:", JSON.stringify(body));
-      if (body === bodiesToTry[bodiesToTry.length - 1]) {
-        return { ok: false, status: res.status, body: text || "(empty response body)" };
-      }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.warn("[item-protection-product] Bind cart-transform error:", err);
-      return { ok: false, error: msg };
-    }
-  }
-
-  return { ok: false, status: 400, body: "All bind attempts failed" };
+  return createAndBindCartTransformFunction(shop, accessToken);
 }
