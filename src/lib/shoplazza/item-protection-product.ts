@@ -53,17 +53,16 @@ export async function createItemProtectionProductWithError(
   const imageSrc = base ? `${base}/item-protection-product.png` : "https://placehold.co/64x64/191919/white?text=IP";
   const images = [{ src: imageSrc }];
 
-  // 2025-06 API expects CreateProductRequest with product object; Product.values and Product.Images (≥1) required.
+  // 2025-06: has_only_default_variant=true requires options and values to be empty ("This only default variant product option must be empty").
   const product = {
     title: "Item protection",
     brief: "Protection for your order (added at checkout).",
     has_only_default_variant: true,
-    options: [{ name: "Title", values: ["Default"] }],
-    values: ["Default"],
+    options: [],
+    values: [],
     images,
     variants: [
       {
-        option1: "Default",
         price: 0,
         position: 1,
         sku: "ITEM-PROTECTION",
