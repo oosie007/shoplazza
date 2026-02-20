@@ -6,9 +6,8 @@ const clientSecret = process.env.SHOPLAZZA_CLIENT_SECRET!;
 /**
  * OAuth scopes – must match Shoplazza’s Access Scopes table exactly.
  * See: https://www.shoplazza.dev/reference/access-scopes-copy
- * For bind cart-transform (403): we include read_function + write_function. If your
- * Partner Center scope list uses different names, update these; if authorize fails, remove
- * the function scopes and enable Function/Cart Transform in Partner Center instead, then reinstall.
+ * Note: read_function / write_function are not valid Shoplazza scope names (authorize returns "Scopes invalid").
+ * For bind cart-transform 403, enable Function/Cart Transform in Partner Center for the app; no extra OAuth scope documented.
  */
 export const SCOPES = [
   "read_shop",
@@ -22,8 +21,6 @@ export const SCOPES = [
   "read_payment_info",
   "read_price_rules",
   "write_price_rules",
-  "read_function",
-  "write_function",
 ].join(" ");
 
 /**
