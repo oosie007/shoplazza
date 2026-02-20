@@ -234,8 +234,10 @@ export async function bindCartTransformWithResult(
   callbackUrl: string
 ): Promise<BindCartTransformResult> {
   const host = normalizeShop(shop);
-  const url = `https://${host}/openapi/${CART_TRANSFORM_OPENAPI_VERSION}/function/cart-transform`;
+  // Shoplazza docs use base URL with trailing slash for function/cart-transform
+  const url = `https://${host}/openapi/${CART_TRANSFORM_OPENAPI_VERSION}/function/cart-transform/`;
 
+  const body = { function_url: callbackUrl, url: callbackUrl };
   try {
     const res = await fetch(url, {
       method: "POST",
@@ -245,16 +247,13 @@ export async function bindCartTransformWithResult(
         "access-token": accessToken,
         Authorization: `Bearer ${accessToken}`,
       },
-      body: JSON.stringify({
-        function_url: callbackUrl,
-        url: callbackUrl,
-      }),
+      body: JSON.stringify(body),
     });
 
     const text = await res.text();
     if (!res.ok) {
-      console.warn("[item-protection-product] Bind cart-transform failed:", res.status, text);
-      return { ok: false, status: res.status, body: text };
+      console.warn("[item-protection-product] Bind cart-transform failed:", res.status, text || "(empty body)", "request URL:", url, "body:", JSON.stringify(body));
+      return { ok: false, status: res.status, body: text || `(empty response body)` };
     }
     console.info("[item-protection-product] Bind cart-transform succeeded:", res.status, text.slice(0, 200));
     return { ok: true };
