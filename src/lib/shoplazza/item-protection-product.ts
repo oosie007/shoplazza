@@ -23,6 +23,36 @@ function normalizeShop(shop: string): string {
   return s.includes(".") ? s : `${s}.myshoplaza.com`;
 }
 
+/** Fetch default variant id for a product (when create response doesn't include variants). */
+async function fetchDefaultVariantId(
+  host: string,
+  accessToken: string,
+  productId: string
+): Promise<string | null> {
+  const url = `https://${host}/openapi/${PRODUCTS_OPENAPI_VERSION}/products/${productId}`;
+  try {
+    const res = await fetch(url, {
+      headers: {
+        Accept: "application/json",
+        "access-token": accessToken,
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+    if (!res.ok) return null;
+    const data = (await res.json()) as {
+      data?: { product?: { variants?: Array<{ id?: string }> } };
+      product?: { variants?: Array<{ id?: string }> };
+      variants?: Array<{ id?: string }>;
+    };
+    const product = data.data?.product ?? data.product ?? data;
+    const variants = product?.variants ?? data.variants ?? [];
+    const id = variants[0]?.id != null ? String(variants[0].id) : null;
+    return id;
+  } catch {
+    return null;
+  }
+}
+
 export type CreateProductResult =
   | { productId: string; variantId: string }
   | { error: string };
@@ -91,20 +121,35 @@ export async function createItemProtectionProductWithError(
       return { error: `Create product failed: ${res.status} ${text}` };
     }
 
-    let data: { product?: { id?: string; variants?: Array<{ id?: string }> }; id?: string; variants?: Array<{ id?: string }> };
+    let data: {
+      code?: string;
+      data?: { product?: { id?: string; variants?: Array<{ id?: string }> }; variants?: Array<{ id?: string }> };
+      product?: { id?: string; variants?: Array<{ id?: string }> };
+      id?: string;
+      variants?: Array<{ id?: string }>;
+    };
     try {
       data = JSON.parse(text) as typeof data;
     } catch {
       return { error: `Invalid JSON response: ${text.slice(0, 200)}` };
     }
-    const product = data.product ?? data;
-    const productId = product.id != null ? String(product.id) : null;
-    const variants = product.variants ?? [];
-    const variantId = variants[0]?.id != null ? String(variants[0].id) : null;
+    // 2025-06 returns { code: "Success", data: { product: { id, ... } } }; older shape is { product: { id, variants } } or root id/variants
+    const product = data.data?.product ?? data.product ?? data;
+    const productId = product?.id != null ? String(product.id) : null;
+    let variants = product?.variants ?? data.data?.variants ?? data.variants ?? [];
+    let variantId = variants[0]?.id != null ? String(variants[0].id) : null;
 
-    if (!productId || !variantId) {
-      console.error("[item-protection-product] Create product response missing id/variant:", data);
-      return { error: `Response missing id/variant: ${JSON.stringify(data).slice(0, 300)}` };
+    if (!productId) {
+      console.error("[item-protection-product] Create product response missing product id:", data);
+      return { error: `Response missing product id: ${JSON.stringify(data).slice(0, 300)}` };
+    }
+
+    if (!variantId) {
+      variantId = await fetchDefaultVariantId(host, accessToken, productId);
+      if (!variantId) {
+        console.error("[item-protection-product] Create product response missing variant and fetch failed:", data);
+        return { error: `Response missing variant id. Product created (${productId}); add variant ID in app admin.` };
+      }
     }
 
     return { productId, variantId };
