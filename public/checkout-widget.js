@@ -266,18 +266,8 @@
         body: JSON.stringify(pricePayload),
         credentials: "same-origin",
       }).then(function (res) {
-        if (res && res.ok && hasCheckoutAPI && CheckoutAPI.store && typeof CheckoutAPI.store.onPricesChange === "function") {
-          res.clone().json().then(function (pricesFromServer) {
-            try {
-              if (pricesFromServer) CheckoutAPI.store.onPricesChange(pricesFromServer);
-            } catch (e) {}
-          }).catch(function () {
-            try {
-              var prices = CheckoutAPI.store.getPrices && CheckoutAPI.store.getPrices();
-              if (prices) CheckoutAPI.store.onPricesChange(prices);
-            } catch (e2) {}
-          });
-        }
+        // CheckoutAPI.store.onPricesChange(cb) registers a callback; it does not accept a prices object.
+        // The order summary is driven by the store's price response; we cannot push prices from the extension.
         return res;
       });
     }
@@ -372,12 +362,16 @@
   }
 
   /**
-   * Build a CheckoutPrices-shaped object from price API response so the checkout UI can re-render (like Worry Free).
+   * Build a CheckoutPrices-shaped object from price API response.
+   * Checkout API: getPrices(): CheckoutPrices; onPricesChange(cb): void — no setter; summary updates only when store provides new prices.
+   * We use this shape for events/callbacks so any listener sees consistent CheckoutPrices (including optional additionalPrices).
    */
   function toCheckoutPrices(prices, items) {
     var p = prices || {};
     var str = function (v) { return v != null ? String(v) : "0"; };
-    return {
+    var additional = Array.isArray(p.additionalPrices) ? p.additionalPrices : (Array.isArray(p.additional_prices) ? p.additional_prices : []);
+    var baseTotal = parseFloat(p.total_price || p.total || p.totalPrice || "0") || 0;
+    var obj = {
       subtotalPrice: str(p.subtotal_price || p.subtotalPrice),
       totalPrice: str(p.total_price || p.total || p.totalPrice),
       shippingPrice: str(p.shipping_price || p.shippingPrice),
@@ -390,9 +384,33 @@
       giftCardPrice: str(p.gift_card_price || p.giftCardPrice),
       totalTipReceived: str(p.total_tip_received || p.totalTipReceived),
       discountShippingPrice: str(p.discount_shipping_price || p.discountShippingPrice),
-      additionalPrices: Array.isArray(p.additionalPrices) ? p.additionalPrices : (Array.isArray(p.additional_prices) ? p.additional_prices : []),
+      additionalPrices: additional,
       line_items: Array.isArray(items) ? items : [],
     };
+    if (p.discountSubTotal != null) obj.discountSubTotal = str(p.discountSubTotal);
+    if (p.shippingTaxTotal != null) obj.shippingTaxTotal = str(p.shippingTaxTotal);
+    if (p.allTaxTotal != null) obj.allTaxTotal = str(p.allTaxTotal);
+    if (p.paymentDiscountTotal != null) obj.paymentDiscountTotal = str(p.paymentDiscountTotal);
+    if (p.prePaymentAmount != null) obj.prePaymentAmount = str(p.prePaymentAmount);
+    return obj;
+  }
+
+  /** If the store did not return our fee in additionalPrices, merge it into a CheckoutPrices object and bump total/paymentDue (for listeners). */
+  function mergeOurFeeIntoPrices(checkoutPrices) {
+    if (!checkoutPrices || !toggleOn || premiumAmount <= 0) return checkoutPrices;
+    var hasOurs = Array.isArray(checkoutPrices.additionalPrices) && checkoutPrices.additionalPrices.some(function (a) {
+      return (a && (a.label === FEE_LABEL || a.fee_title === FEE_LABEL));
+    });
+    if (hasOurs) return checkoutPrices;
+    var amountStr = premiumAmount.toFixed(2);
+    var merged = Object.assign({}, checkoutPrices);
+    merged.additionalPrices = (merged.additionalPrices && merged.additionalPrices.slice()) || [];
+    merged.additionalPrices.push({ label: FEE_LABEL, amount: amountStr, fee_title: FEE_LABEL, price: amountStr });
+    var total = parseFloat(merged.totalPrice || "0") || 0;
+    var paymentDue = parseFloat(merged.paymentDue || "0") || 0;
+    merged.totalPrice = (total + premiumAmount).toFixed(2);
+    merged.paymentDue = (paymentDue + premiumAmount).toFixed(2);
+    return merged;
   }
 
   /**
@@ -470,10 +488,8 @@
                 console.log("[CD Insure] Price response total=" + total + " line_items=" + count + ", notifying checkout");
               }
               var checkoutPrices = toCheckoutPrices(prices, items);
-              if (typeof CheckoutAPI.store.onPricesChange === "function") {
-                CheckoutAPI.store.onPricesChange(checkoutPrices);
-              }
-              // Trigger the same kind of refresh Worry Free gets after pkg_set + price (no console, just cart update).
+              checkoutPrices = mergeOurFeeIntoPrices(checkoutPrices);
+              // API has no setter (only getPrices/onPricesChange). Notify any custom listeners with full CheckoutPrices.
               triggerCheckoutRefresh(checkoutPrices);
             } catch (e) {
               if (typeof console !== "undefined" && console.warn) console.warn("[CD Insure] onPricesChange error", e);
@@ -514,28 +530,48 @@
     const cartUrl = base + "/api/cart";
 
     if (enabled) {
-      if (typeof console !== "undefined" && console.log) {
-        console.log("[CD Insure] Cart API: POST " + cartUrl + " with product_id=" + productId + " variant_id=" + variantId);
-      }
       fetch(cartUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Accept": "application/json",
-        },
-        body: JSON.stringify({
-          product_id: productId,
-          variant_id: variantId,
-          quantity: 1,
-          refer_info: { source: "add_to_cart" },
-        }),
+        method: "GET",
+        headers: { "Content-Type": "application/json", "Accept": "application/json" },
         credentials: "same-origin",
       })
+        .then(function (res) { return res.ok ? res.json() : null; })
+        .then(function (data) {
+          var cart = data && data.cart;
+          var items = cart && cart.line_items;
+          var alreadyHas = Array.isArray(items) && items.some(function (item) {
+            var pid = item.product_id != null ? String(item.product_id) : (item.productId != null ? String(item.productId) : "");
+            return pid === String(productId);
+          });
+          if (alreadyHas) {
+            if (typeof console !== "undefined" && console.log) {
+              console.log("[CD Insure] Item Protection already in cart, skipping add (avoids duplicate lines).");
+            }
+            refreshCheckoutPriceAfterCartChange();
+            showRefreshHint("added");
+            return;
+          }
+          if (typeof console !== "undefined" && console.log) {
+            console.log("[CD Insure] Cart API: POST " + cartUrl + " with product_id=" + productId + " variant_id=" + variantId);
+          }
+          return fetch(cartUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "Accept": "application/json" },
+            body: JSON.stringify({
+              product_id: productId,
+              variant_id: variantId,
+              quantity: 1,
+              refer_info: { source: "add_to_cart" },
+            }),
+            credentials: "same-origin",
+          });
+        })
         .then(function (res) {
+          if (!res || typeof res.ok === "undefined") return;
           if (typeof console !== "undefined" && console.log) {
             console.log("[CD Insure] Cart API response: status " + (res ? res.status : "none"));
           }
-          if (res && res.ok) {
+          if (res.ok) {
             debugLog("Cart API: added Item Protection line");
             if (typeof console !== "undefined" && console.log) {
               console.log("[CD Insure] Item Protection line added (200). Refetching price. Use the link below to refresh the page if the total does not update.");
@@ -788,6 +824,10 @@
       retryCount = retryCount || 0;
       const maxRetries = 12;
       debugLog("mount() retry=" + retryCount + " CheckoutAPI=" + (hasCheckoutAPI ? "yes" : "no"));
+      if (debugEnabled && hasCheckoutAPI && CheckoutAPI.store && typeof CheckoutAPI.store === "object") {
+        var storeKeys = Object.keys(CheckoutAPI.store).filter(function (k) { return typeof CheckoutAPI.store[k] === "function"; });
+        debugLog("CheckoutAPI.store methods: " + storeKeys.join(", "));
+      }
       let root = document.querySelector("#cd-insure-widget-root");
       if (!root) {
         const target = getMountTarget();

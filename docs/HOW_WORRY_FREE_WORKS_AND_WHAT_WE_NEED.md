@@ -43,6 +43,10 @@ So it’s not that our code is wrong: we’re using the only path we have (Cart 
 
 Once that’s done, we can switch our widget to the same flow as Worry Free (pkg_set + price only, no Cart API for this fee), and the item will “get into the order” and the total will update correctly.
 
+## Why the price API response has empty additional_prices
+
+We send **POST /api/checkout/price** with `additional_prices: [{ name: "cd_insure_item_protection", price: "40.00", fee_title: "Item protection" }]`. The store receives it but does not apply it (no checkout package). The response has `additional_prices: []`, `additional_total: "0.00"`, and total = subtotal + shipping only. So the request is correct; the store ignores our fee until a package is registered.
+
 ## Summary
 
 | | Worry Free | Us (current) |
