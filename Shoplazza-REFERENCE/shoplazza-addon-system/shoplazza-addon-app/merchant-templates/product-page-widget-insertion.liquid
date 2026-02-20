@@ -1,0 +1,23 @@
+{% comment %}
+  Shoplazza Add-On Widget Insertion Template
+  Copy this code into your product page template where you want the add-on widget to appear.
+  
+  Recommended placement: Right before or after your "Add to Cart" button
+{% endcomment %}
+
+<!-- Shoplazza Add-On Widget -->
+<div id="shoplazza-addon-widget" 
+     data-product-id="{{ product.id }}" 
+     data-product-handle="{{ product.handle }}" 
+     data-product-title="{{ product.title | escape }}">
+</div>
+
+{% comment %}
+  The widget will automatically:
+  - Detect this anchor and render the add-on interface
+  - Load add-on configuration for this product
+  - Handle cart integration when customers click "Add to Cart"
+  - Show confirmation popups for add-on selection
+  
+  No additional code required!
+{% endcomment %}

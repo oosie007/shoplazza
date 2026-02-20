@@ -19,6 +19,8 @@ export const settingsPatchSchema = z
     enablePoweredByChubb: z.boolean().optional(),
     offerAtCheckout: z.boolean().optional(),
     claimPortalConfigured: z.boolean().optional(),
+    itemProtectionProductId: z.string().min(1).optional().or(z.literal("")),
+    itemProtectionVariantId: z.string().min(1).optional().or(z.literal("")),
   });
 
 /** POST /api/checkout/apply-fee body */

@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Add-On Configuration - {{SHOP_DOMAIN}}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            background: white;
+            padding: 30px;
+            margin-bottom: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        .header h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 32px;
+        }
+        
+        .header p {
+            color: #666;
+            font-size: 18px;
+        }
+        
+        .config-section {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .config-section h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 24px;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 10px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+        }
+        
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 3px rgba(0,123,255,0.1);
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #0056b3;
+        }
+        
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #218838;
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #c82333;
+        }
+        
+        .addon-list {
+            margin-top: 30px;
+        }
+        
+        .addon-item {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+            background: #fafafa;
+        }
+        
+        .addon-item.active {
+            border-color: #28a745;
+            background: #f8fff9;
+        }
+        
+        .addon-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .addon-title {
+            font-weight: bold;
+            color: #2c3e50;
+            font-size: 18px;
+        }
+        
+        .addon-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .addon-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            color: #666;
+            font-size: 14px;
+        }
+        
+        .addon-price {
+            color: #28a745;
+            font-weight: bold;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        .empty-state h3 {
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+        
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .addon-details {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>⚙️ Add-On Configuration</h1>
+            <p>Configure product add-ons for {{SHOP_DOMAIN}}</p>
+        </div>
+        
+        <div id="alerts"></div>
+        
+        <div class="config-section">
+            <h2>➕ Create New Add-On</h2>
+            <form id="addonForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="productId">Product</label>
+                        <select id="productSelect" name="productId" required>
+                            <option value="" disabled selected>Select a product...</option>
+                        </select>
+                        <input type="hidden" id="productIdHidden" name="productId">
+                    </div>
+                    <div class="form-group">
+                        <label for="variantSelect">Variant (for add-to-cart)</label>
+                        <select id="variantSelect">
+                            <option value="" disabled selected>Select a variant (optional)...</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="addOnTitle">Add-On Title</label>
+                    <input type="text" id="addOnTitle" name="addOnTitle" required placeholder="e.g., Premium Protection">
+                </div>
+                
+                <div class="form-group">
+                    <label for="addOnDescription">Description</label>
+                    <textarea id="addOnDescription" name="addOnDescription" rows="3" placeholder="Describe what this add-on provides..."></textarea>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="addOnPrice">Price ($)</label>
+                        <input type="number" id="addOnPrice" name="addOnPrice" step="0.01" min="0" required placeholder="0.00">
+                    </div>
+                    <div class="form-group">
+                        <label for="addOnSku">SKU</label>
+                        <input type="text" id="addOnSku" name="addOnSku" placeholder="e.g., PROTECTION-001">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="isActive" name="isActive" checked>
+                        Active (Enable this add-on)
+                    </label>
+                </div>
+                
+                <button type="submit" class="btn btn-primary">Create Add-On</button>
+            </form>
+        </div>
+        
+        <div class="config-section">
+            <h2>📦 Existing Add-Ons</h2>
+            <div id="addonList" class="addon-list">
+                {{ADDON_LIST_HTML}}
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const shop = '{{SHOP_DOMAIN}}';
+        
+        // Form submission
+        document.getElementById('addonForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const variantSelect = document.getElementById('variantSelect');
+            const addOnConfig = {
+                isEnabled: formData.get('isActive') === 'on',
+                addOnTitle: formData.get('addOnTitle'),
+                addOnDescription: formData.get('addOnDescription'),
+                addOnPriceCents: Math.round(parseFloat(formData.get('addOnPrice')) * 100),
+                addOnSku: formData.get('addOnSku') || `ADDON-${formData.get('productId')}`,
+                displayText: `+$${formData.get('addOnPrice')}`,
+                requiresShipping: false,
+                currency: 'USD',
+                addOnVariantId: variantSelect && variantSelect.value ? Number(variantSelect.value) : null
+            };
+            
+            try {
+                const response = await fetch(`/api/merchant/addons/${formData.get('productId')}?shop=${encodeURIComponent(shop)}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(addOnConfig)
+                });
+                
+                if (response.ok) {
+                    showAlert('Add-on created successfully!', 'success');
+                    e.target.reset();
+                    loadAddOns();
+                } else {
+                    const error = await response.text();
+                    showAlert(`Error: ${error}`, 'error');
+                }
+            } catch (error) {
+                showAlert(`Error: ${error.message}`, 'error');
+            }
+        });
+        
+        // Load add-ons
+        async function loadAddOns() {
+            try {
+                const response = await fetch(`/api/merchant/addons?shop=${encodeURIComponent(shop)}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    updateAddOnList(data.addOns);
+                }
+            } catch (error) {
+                console.error('Error loading add-ons:', error);
+            }
+        }
+        
+        // Update add-on list
+        function updateAddOnList(addOns) {
+            const addOnList = document.getElementById('addonList');
+            
+            if (addOns.length === 0) {
+                addOnList.innerHTML = `
+                    <div class="empty-state">
+                        <h3>No Add-Ons Configured</h3>
+                        <p>Create your first add-on above to get started!</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            addOnList.innerHTML = addOns.map(addOn => `
+                <div class="addon-item ${addOn.isActive ? 'active' : ''}" data-product-id="${addOn.productId}">
+                    <div class="addon-header">
+                        <div class="addon-title">${addOn.addOnTitle}</div>
+                        <div class="addon-actions">
+                            <button class="btn btn-success" onclick="editAddOn(${addOn.productId})">Edit</button>
+                            <button class="btn btn-danger" onclick="deleteAddOn(${addOn.productId})">Delete</button>
+                        </div>
+                    </div>
+                    <div class="addon-details">
+                        <div><strong>Product ID:</strong> ${addOn.productId}</div>
+                        <div><strong>Product:</strong> ${addOn.productTitle}</div>
+                        <div><strong>Price:</strong> <span class="addon-price">$${(addOn.addOnPriceCents / 100).toFixed(2)}</span></div>
+                        <div><strong>SKU:</strong> ${addOn.sku}</div>
+                        <div><strong>Status:</strong> ${addOn.isActive ? 'Active' : 'Inactive'}</div>
+                        <div><strong>Description:</strong> ${addOn.addOnDescription}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // Edit add-on
+        function editAddOn(productId) {
+            // TODO: Implement edit functionality
+            showAlert('Edit functionality coming soon!', 'success');
+        }
+        
+        // Delete add-on
+        async function deleteAddOn(productId) {
+            if (!confirm('Are you sure you want to delete this add-on?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/merchant/addons/${productId}?shop=${encodeURIComponent(shop)}`, {
+                    method: 'DELETE'
+                });
+                
+                if (response.ok) {
+                    showAlert('Add-on deleted successfully!', 'success');
+                    loadAddOns();
+                } else {
+                    const error = await response.text();
+                    showAlert(`Error: ${error}`, 'error');
+                }
+            } catch (error) {
+                showAlert(`Error: ${error.message}`, 'error');
+            }
+        }
+        
+        // Show alert
+        function showAlert(message, type) {
+            const alerts = document.getElementById('alerts');
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            alert.textContent = message;
+            
+            alerts.appendChild(alert);
+            
+            setTimeout(() => {
+                alert.remove();
+            }, 5000);
+        }
+        
+        // Load add-ons on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Config page loaded for shop:', shop);
+            loadProducts();
+        });
+
+        async function loadProducts(sinceId) {
+            try {
+                const url = new URL(`/api/merchant/products`, window.location.origin);
+                url.searchParams.set('shop', shop);
+                url.searchParams.set('limit', '50');
+                if (sinceId) url.searchParams.set('sinceId', sinceId);
+
+                const res = await fetch(url.toString(), { credentials: 'include' });
+                if (!res.ok) return;
+                const data = await res.json();
+                populateProductSelect(data.products || []);
+
+                // Optionally support pagination by calling again with nextSinceId
+                // if (data.nextSinceId) loadProducts(data.nextSinceId);
+            } catch (e) {
+                console.error('Failed to load products', e);
+            }
+        }
+
+        function populateProductSelect(products) {
+            const select = document.getElementById('productSelect');
+            products.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.id;
+                opt.textContent = `#${p.id} · ${p.title}`;
+                select.appendChild(opt);
+            });
+
+            select.addEventListener('change', () => {
+                document.getElementById('productIdHidden').value = select.value;
+                loadVariants(select.value);
+            });
+        }
+
+        async function loadVariants(productId) {
+            const variantSelect = document.getElementById('variantSelect');
+            variantSelect.innerHTML = '<option value="" disabled selected>Loading variants...</option>';
+            try {
+                const url = new URL(`/api/merchant/products/${productId}`, window.location.origin);
+                url.searchParams.set('shop', shop);
+                const res = await fetch(url.toString(), { credentials: 'include' });
+                if (!res.ok) { variantSelect.innerHTML = '<option value="" disabled selected>No variants found</option>'; return; }
+                const product = await res.json();
+                variantSelect.innerHTML = '<option value="" selected>None (use SKU only)</option>';
+                (product.variants || []).forEach(v => {
+                    const opt = document.createElement('option');
+                    opt.value = v.id;
+                    opt.textContent = `#${v.id} · ${v.title} · $${Number(v.price).toFixed(2)} ${v.sku ? '· '+v.sku : ''}`;
+                    variantSelect.appendChild(opt);
+                });
+            } catch (e) {
+                variantSelect.innerHTML = '<option value="" disabled selected>Error loading variants</option>';
+            }
+        }
+    </script>
+</body>
+</html> 

@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shoplazza Add-On Widget Demo</title>
+    
+    <!-- Widget Configuration Meta Tags -->
+    <meta name="shoplazza-addon-shop" content="demo-store.myshoplazza.com">
+    <meta name="shoplazza-addon-product-id" content="123456">
+    <meta name="shoplazza-addon-api-endpoint" content="https://your-app.azurewebsites.net">
+    <meta name="shoplazza-addon-theme" content="default">
+    <meta name="shoplazza-addon-debug" content="true">
+    
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .demo-section {
+            margin: 40px 0;
+            padding: 20px;
+            border: 1px solid #e1e8ed;
+            border-radius: 8px;
+        }
+        
+        .product-form {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        
+        .product-price {
+            font-size: 24px;
+            font-weight: 600;
+            color: #007bff;
+            margin: 10px 0;
+        }
+        
+        .add-to-cart {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        
+        .add-to-cart:hover {
+            background: #0056b3;
+        }
+        
+        .demo-controls {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 20px 0;
+        }
+        
+        .demo-button {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            margin: 5px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .demo-button:hover {
+            background: #218838;
+        }
+        
+        .theme-button {
+            background: #6c757d;
+        }
+        
+        .theme-button:hover {
+            background: #545b62;
+        }
+        
+        .debug-panel {
+            background: #1a1a1a;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            margin: 20px 0;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Shoplazza Add-On Widget Demo</h1>
+    
+    <div class="demo-section">
+        <h2>Product Page Simulation</h2>
+        <p>This demo simulates a product page where the add-on widget would appear.</p>
+        
+        <div class="product-form">
+            <h3>Premium T-Shirt</h3>
+            <div class="product-price">$29.99</div>
+            
+            <!-- Widget will be inserted here automatically -->
+            
+            <form action="/cart/add" method="post">
+                <input type="hidden" name="id" value="123456">
+                <input type="hidden" name="quantity" value="1">
+                <button type="submit" class="add-to-cart">Add to Cart</button>
+            </form>
+        </div>
+    </div>
+    
+    <div class="demo-section">
+        <h2>Demo Controls</h2>
+        <div class="demo-controls">
+            <h4>Widget Actions:</h4>
+            <button class="demo-button" onclick="initWidget()">Initialize Widget</button>
+            <button class="demo-button" onclick="destroyWidget()">Destroy Widget</button>
+            <button class="demo-button" onclick="toggleDebug()">Toggle Debug</button>
+            
+            <h4>Theme Testing:</h4>
+            <button class="demo-button theme-button" onclick="switchTheme('default')">Default</button>
+            <button class="demo-button theme-button" onclick="switchTheme('minimal')">Minimal</button>
+            <button class="demo-button theme-button" onclick="switchTheme('rounded')">Rounded</button>
+            <button class="demo-button theme-button" onclick="switchTheme('compact')">Compact</button>
+            
+            <h4>Configuration Testing:</h4>
+            <button class="demo-button" onclick="testWithAddOn()">Load with Add-On</button>
+            <button class="demo-button" onclick="testWithoutAddOn()">Load without Add-On</button>
+            <button class="demo-button" onclick="testError()">Test Error State</button>
+        </div>
+    </div>
+    
+    <div class="demo-section">
+        <h2>Debug Information</h2>
+        <div id="debug-panel" class="debug-panel">
+            <div>Widget Debug Console:</div>
+            <div>Ready to initialize...</div>
+        </div>
+    </div>
+    
+    <!-- Load the widget script -->
+    <script src="../dist/main.js"></script>
+    
+    <script>
+        let currentWidget = null;
+        let debugMode = true;
+        
+        // Mock API responses for demo
+        const mockAddOnData = {
+            id: 1,
+            productId: 123456,
+            productTitle: "Premium T-Shirt",
+            productHandle: "premium-t-shirt",
+            isEnabled: true,
+            isActive: true,
+            addOn: {
+                title: "Insurance Protection",
+                description: "Protect your purchase with our comprehensive insurance coverage",
+                price: "USD 2.50",
+                priceCents: 250,
+                currency: "USD",
+                displayText: "Add Insurance Protection (+$2.50)",
+                sku: "INS-PROTECTION-001",
+                requiresShipping: false,
+                weightGrams: 0,
+                isTaxable: true,
+                imageUrl: null,
+                position: 1,
+                addOnVariantId: 789012
+            },
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        };
+        
+        // Override fetch for demo purposes
+        const originalFetch = window.fetch;
+        window.fetch = function(url, options) {
+            log(`Fetch called: ${url}`);
+            
+            if (url.includes('/api/products/123456')) {
+                return Promise.resolve({
+                    ok: true,
+                    json: () => Promise.resolve(mockAddOnData)
+                });
+            }
+            
+            if (url.includes('/cart/add.js')) {
+                log('Adding to cart:', options.body);
+                return Promise.resolve({
+                    ok: true,
+                    json: () => Promise.resolve({ success: true })
+                });
+            }
+            
+            if (url.includes('/cart.js')) {
+                return Promise.resolve({
+                    ok: true,
+                    json: () => Promise.resolve({ 
+                        items: [],
+                        total_price: 0,
+                        item_count: 0
+                    })
+                });
+            }
+            
+            return originalFetch.apply(this, arguments);
+        };
+        
+        // Initialize widget with demo configuration
+        function initWidget() {
+            if (currentWidget) {
+                destroyWidget();
+            }
+            
+            log('Initializing widget...');
+            
+            try {
+                currentWidget = window.ShoplazzaAddon.init({
+                    shop: 'demo-store.myshoplazza.com',
+                    productId: 123456,
+                    apiEndpoint: 'https://demo.local',
+                    debug: debugMode,
+                    theme: 'default',
+                    autoDetectProduct: false,
+                    onInit: (widget) => {
+                        log('Widget initialized successfully');
+                        console.log('Widget instance:', widget);
+                    },
+                    onAddOnToggle: (addOnId, isChecked, widget) => {
+                        log(`Add-on ${addOnId} ${isChecked ? 'selected' : 'deselected'}`);
+                    },
+                    onCartUpdate: (selectedAddOns, widget) => {
+                        log('Cart updated with add-ons:', Array.from(selectedAddOns));
+                    },
+                    onError: (message, error, widget) => {
+                        log(`Error: ${message} - ${error.message}`, 'error');
+                    }
+                });
+                
+                log('Widget instance created with ID:', currentWidget.id);
+            } catch (error) {
+                log(`Failed to initialize widget: ${error.message}`, 'error');
+            }
+        }
+        
+        function destroyWidget() {
+            if (currentWidget) {
+                log('Destroying widget...');
+                currentWidget.destroy();
+                currentWidget = null;
+                log('Widget destroyed');
+            }
+        }
+        
+        function switchTheme(themeName) {
+            if (currentWidget) {
+                log(`Switching to theme: ${themeName}`);
+                currentWidget.updateConfig({ theme: themeName });
+            } else {
+                log('No widget instance to update theme');
+            }
+        }
+        
+        function toggleDebug() {
+            debugMode = !debugMode;
+            log(`Debug mode ${debugMode ? 'enabled' : 'disabled'}`);
+            
+            if (currentWidget) {
+                currentWidget.updateConfig({ debug: debugMode });
+            }
+        }
+        
+        function testWithAddOn() {
+            log('Testing with add-on enabled...');
+            initWidget();
+        }
+        
+        function testWithoutAddOn() {
+            log('Testing without add-on (disabled)...');
+            // Temporarily modify mock data
+            const originalEnabled = mockAddOnData.isEnabled;
+            mockAddOnData.isEnabled = false;
+            
+            initWidget();
+            
+            // Restore original state after a delay
+            setTimeout(() => {
+                mockAddOnData.isEnabled = originalEnabled;
+            }, 1000);
+        }
+        
+        function testError() {
+            log('Testing error state...');
+            
+            // Temporarily break the fetch mock
+            const originalFetch = window.fetch;
+            window.fetch = function(url) {
+                if (url.includes('/api/products/123456')) {
+                    return Promise.resolve({
+                        ok: false,
+                        status: 500,
+                        json: () => Promise.resolve({ error: 'Internal server error' })
+                    });
+                }
+                return originalFetch.apply(this, arguments);
+            };
+            
+            initWidget();
+            
+            // Restore original fetch after a delay
+            setTimeout(() => {
+                window.fetch = originalFetch;
+            }, 2000);
+        }
+        
+        function log(message, level = 'info') {
+            const debugPanel = document.getElementById('debug-panel');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            
+            let color = '#00ff00';
+            if (level === 'error') color = '#ff5555';
+            if (level === 'warn') color = '#ffff55';
+            
+            logEntry.style.color = color;
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            
+            debugPanel.appendChild(logEntry);
+            debugPanel.scrollTop = debugPanel.scrollHeight;
+            
+            // Also log to browser console
+            console.log(`[Shoplazza Widget Demo] ${message}`);
+        }
+        
+        // Auto-initialize widget when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            log('Demo page loaded');
+            log('ShoplazzaAddon available:', !!window.ShoplazzaAddon);
+            
+            setTimeout(() => {
+                initWidget();
+            }, 500);
+        });
+        
+        // Global access for debugging
+        window.demoWidget = {
+            get current() { return currentWidget; },
+            init: initWidget,
+            destroy: destroyWidget,
+            switchTheme,
+            log
+        };
+    </script>
+</body>
+</html>

@@ -20,6 +20,8 @@ type Settings = {
   enablePoweredByChubb: boolean;
   offerAtCheckout: boolean;
   claimPortalConfigured: boolean;
+  itemProtectionProductId?: string;
+  itemProtectionVariantId?: string;
 };
 
 function getShopFromQuery(): string | null {
@@ -362,6 +364,43 @@ export function ConfigurationContent() {
               />
               <span>Show &quot;Powered by Chubb&quot; logo</span>
             </label>
+          </section>
+
+          {/* How totals update: checkout package (primary) vs Cart API (fallback) */}
+          <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
+            <h2 className="text-lg font-medium text-zinc-900">Cart totals integration</h2>
+            <p className="mt-1 text-sm text-zinc-700">
+              <strong>Recommended (no setup for you):</strong> We register an &quot;Item Protection&quot; add-on with Shoplazza (checkout package). Once that’s active, your store will add our fee to the order and update the total when the customer toggles the widget—no product to create. If your total doesn’t update yet, we may still be completing registration with Shoplazza; contact us and we’ll confirm.
+            </p>
+            <p className="mt-2 text-sm text-zinc-500">
+              <strong>Optional workaround:</strong> If the add-on isn’t available yet, you can add Item Protection as a normal cart line item by creating a product in your store (e.g. &quot;Item Protection&quot;) and entering its IDs below. The widget will add/remove that product when the toggle is used. Leave blank to rely on the add-on only.
+            </p>
+            <div className="mt-3 space-y-2">
+              <label className="block text-sm font-medium text-zinc-700">
+                Item Protection product ID (optional)
+              </label>
+              <input
+                type="text"
+                value={settings?.itemProtectionProductId ?? ""}
+                onChange={(e) =>
+                  updateSetting({ itemProtectionProductId: e.target.value })
+                }
+                placeholder="Leave blank to use add-on; or paste product ID"
+                className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+              <label className="block text-sm font-medium text-zinc-700">
+                Item Protection variant ID (optional)
+              </label>
+              <input
+                type="text"
+                value={settings?.itemProtectionVariantId ?? ""}
+                onChange={(e) =>
+                  updateSetting({ itemProtectionVariantId: e.target.value })
+                }
+                placeholder="Only needed if using product workaround"
+                className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
           </section>
         </div>
 

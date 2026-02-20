@@ -44,8 +44,37 @@ export async function GET(request: NextRequest) {
   try {
     const { access_token } = await exchangeCodeForToken(shop, code, redirectUri);
 
-    const { saveInstallation } = await import("@/lib/shoplazza/store");
+    const { saveInstallation, getStoreByShop } = await import("@/lib/shoplazza/store");
     await saveInstallation(shop, access_token);
+
+    // Create "Item Protection" product and bind Cart Transform (one product per store; no merchant action)
+    try {
+      const store = await getStoreByShop(shop);
+      const settings = store?.settings as { itemProtectionProductId?: string | null } | undefined;
+      if (store && !settings?.itemProtectionProductId) {
+        const {
+          createItemProtectionProduct,
+          bindCartTransform,
+        } = await import("@/lib/shoplazza/item-protection-product");
+        const base = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin;
+        const callbackUrl = `${base.replace(/\/$/, "")}/api/shoplazza/cart-transform`;
+
+        const created = await createItemProtectionProduct(shop, access_token);
+        if (created && store.settings) {
+          const { prisma } = await import("@/lib/db");
+          await prisma.storeSettings.update({
+            where: { id: store.settings.id },
+            data: {
+              itemProtectionProductId: created.productId,
+              itemProtectionVariantId: created.variantId,
+            },
+          });
+          await bindCartTransform(shop, access_token, callbackUrl);
+        }
+      }
+    } catch (setupErr) {
+      console.error("[auth/callback] Item Protection setup failed (non-blocking):", setupErr);
+    }
 
     // Redirect to admin (Phase 2 will serve the embedded UI)
     const base = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin;

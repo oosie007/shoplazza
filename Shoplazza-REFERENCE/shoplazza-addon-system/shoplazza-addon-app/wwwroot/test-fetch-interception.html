@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Fetch Interception</title>
+</head>
+<body>
+    <h1>Test Fetch Interception</h1>
+    
+    <div id="shoplazza-addon-widget">
+        <label>
+            <input type="checkbox" class="addon-checkbox" checked>
+            Protect your goods (+$1.99)
+        </label>
+        <p class="addon-description">Test add-on description</p>
+    </div>
+    
+    <button onclick="testFetch()">Test Cart API Call</button>
+    
+    <div id="output"></div>
+    
+    <script>
+        // Mock widget object for testing
+        window.ShoplazzaAddonWidget = {
+            currentProductId: 'test-product',
+            addOnConfig: {
+                id: 1,
+                title: 'Protect your goods',
+                price: 1.99,
+                sku: 'PROTECTION-001',
+                description: 'Test protection plan',
+                variantId: 'test-variant'
+            },
+            getCurrentAddOnSelection: function() {
+                const checkbox = document.querySelector('.addon-checkbox');
+                if (checkbox && checkbox.checked) {
+                    return {
+                        selected: true,
+                        title: this.addOnConfig.title,
+                        price: this.addOnConfig.price,
+                        sku: this.addOnConfig.sku,
+                        description: this.addOnConfig.description,
+                        variantId: this.addOnConfig.variantId
+                    };
+                }
+                return { selected: false };
+            }
+        };
+        
+        // Test fetch interception
+        const originalFetch = window.fetch;
+        window.fetch = function(url, options) {
+            if (typeof url === 'string' && url.includes('/api/cart') && options && options.method === 'POST') {
+                console.log('✅ Fetch intercepted for:', url);
+                
+                const modifiedOptions = { ...options };
+                
+                if (modifiedOptions.body) {
+                    try {
+                        const body = JSON.parse(modifiedOptions.body);
+                        console.log('Original body:', body);
+                        
+                        if (body.id || body.product_id) {
+                            const addOnSelection = window.ShoplazzaAddonWidget.getCurrentAddOnSelection();
+                            
+                            if (addOnSelection && addOnSelection.selected) {
+                                console.log('✅ Add-on selected, adding properties');
+                                
+                                if (!body.properties) {
+                                    body.properties = {};
+                                }
+                                
+                                body.properties['_add_on_type'] = 'protection_plan';
+                                body.properties['_add_on_name'] = addOnSelection.title;
+                                body.properties['_add_on_price'] = addOnSelection.price.toString();
+                                body.properties['_add_on_sku'] = addOnSelection.sku;
+                                body.properties['_add_on_description'] = addOnSelection.description;
+                                body.properties['_compressed'] = 'true';
+                                
+                                modifiedOptions.body = JSON.stringify(body);
+                                console.log('✅ Modified body with add-on properties:', body);
+                                
+                                document.getElementById('output').innerHTML = 
+                                    '<h3>✅ Success! Add-on properties added:</h3>' +
+                                    '<pre>' + JSON.stringify(body.properties, null, 2) + '</pre>';
+                            } else {
+                                console.log('❌ No add-on selected');
+                                document.getElementById('output').innerHTML = '<h3>❌ No add-on selected</h3>';
+                            }
+                        }
+                    } catch (e) {
+                        console.error('❌ Error parsing body:', e);
+                    }
+                }
+                
+                return originalFetch(url, modifiedOptions);
+            }
+            
+            return originalFetch.apply(this, arguments);
+        };
+        
+        console.log('🚀 Fetch interception enabled');
+        
+        function testFetch() {
+            console.log('🧪 Testing fetch interception...');
+            
+            fetch('/api/cart', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: 'test-product-id',
+                    quantity: 1
+                })
+            }).then(response => {
+                console.log('✅ Fetch call completed');
+            }).catch(error => {
+                console.log('✅ Fetch call intercepted (expected to fail locally)');
+            });
+        }
+    </script>
+</body>
+</html>

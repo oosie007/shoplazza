@@ -1,0 +1,69 @@
+{
+  "name": "shoplazza-addon-widget",
+  "version": "1.0.0",
+  "description": "Frontend JavaScript widget for Shoplazza optional product add-ons",
+  "main": "dist/widget.js",
+  "scripts": {
+    "build": "webpack --mode=production",
+    "build:dev": "webpack --mode=development",
+    "watch": "webpack --mode=development --watch",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "lint": "eslint src/**/*.js",
+    "lint:fix": "eslint src/**/*.js --fix",
+    "serve": "webpack serve --mode=development"
+  },
+  "keywords": [
+    "shoplazza",
+    "ecommerce",
+    "addon",
+    "widget",
+    "javascript"
+  ],
+  "author": "Shoplazza Add-On System",
+  "license": "MIT",
+  "devDependencies": {
+    "@babel/core": "^7.22.0",
+    "@babel/preset-env": "^7.22.0",
+    "babel-loader": "^9.1.0",
+    "css-loader": "^6.8.0",
+    "eslint": "^8.42.0",
+    "eslint-config-airbnb-base": "^15.0.0",
+    "eslint-plugin-import": "^2.27.0",
+    "html-webpack-plugin": "^5.5.0",
+    "jest": "^29.5.0",
+    "jest-environment-jsdom": "^29.5.0",
+    "mini-css-extract-plugin": "^2.7.0",
+    "style-loader": "^3.3.0",
+    "webpack": "^5.88.0",
+    "webpack-cli": "^5.1.0",
+    "webpack-dev-server": "^4.15.0"
+  },
+  "dependencies": {},
+  "browserslist": [
+    "> 1%",
+    "last 2 versions",
+    "not dead"
+  ],
+  "jest": {
+    "testEnvironment": "jsdom",
+    "coverageDirectory": "coverage",
+    "collectCoverageFrom": [
+      "src/**/*.js",
+      "!src/**/*.test.js"
+    ]
+  },
+  "eslintConfig": {
+    "extends": ["airbnb-base"],
+    "env": {
+      "browser": true,
+      "jest": true,
+      "es6": true
+    },
+    "rules": {
+      "no-console": "warn",
+      "no-unused-vars": "error"
+    }
+  }
+}

@@ -11,6 +11,7 @@ export const SCOPES = [
   "read_shop",
   "write_shop",
   "read_product",
+  "write_product",
   "read_collection",
   "read_order",
   "write_order",

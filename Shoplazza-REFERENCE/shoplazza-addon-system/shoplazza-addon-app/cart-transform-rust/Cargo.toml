@@ -1,0 +1,39 @@
+[package]
+name = "cart-transform-rust"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "cart-transform-rust"
+path = "src/main.rs"
+
+[dependencies]
+# JSON serialization/deserialization (needed for production build)
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# WebAssembly bindings (for web testing only) - REMOVED for stdin/stdout version
+
+# Error handling (needed for production build)
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Utilities (needed for production build)
+chrono = { version = "0.4", features = ["serde"] }
+
+[dev-dependencies]
+# Testing
+tokio = { version = "1.0", features = ["full"] }
+
+[profile.release]
+# Optimize for size
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[profile.dev]
+# Development optimizations
+opt-level = 0
+debug = true

@@ -11,7 +11,7 @@ const path = require("path");
 const repoRoot = path.join(__dirname, "..");
 const envPath = path.join(repoRoot, ".env.local");
 const envExample = path.join(repoRoot, ".env");
-const extPath = path.join(repoRoot, "extensions", "cd-insure-item-protection", "src", "index.js");
+const extPath = path.join(repoRoot, "cd-insure-item-protection3", "extensions", "itemprotect_extension", "src", "index.js");
 
 function readAppUrl() {
   for (const p of [envPath, envExample]) {

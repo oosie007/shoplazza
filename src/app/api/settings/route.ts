@@ -47,6 +47,8 @@ export async function GET(request: NextRequest) {
     enablePoweredByChubb: s.enablePoweredByChubb,
     offerAtCheckout: s.offerAtCheckout,
     claimPortalConfigured: s.claimPortalConfigured,
+    itemProtectionProductId: s.itemProtectionProductId ?? undefined,
+    itemProtectionVariantId: s.itemProtectionVariantId ?? undefined,
   });
 }
 
@@ -105,11 +107,16 @@ export async function PATCH(request: NextRequest) {
     "enablePoweredByChubb",
     "offerAtCheckout",
     "claimPortalConfigured",
+    "itemProtectionProductId",
+    "itemProtectionVariantId",
   ] as const;
   for (const key of allowed) {
     if (body[key] === undefined) continue;
     if (key === "categoryPercents" || key === "excludedCategoryIds") {
       upd[key] = JSON.stringify(body[key]);
+    } else if (key === "itemProtectionProductId" || key === "itemProtectionVariantId") {
+      const v = body[key];
+      upd[key] = v === "" || v == null ? null : v;
     } else {
       upd[key] = body[key];
     }
@@ -146,5 +153,7 @@ export async function PATCH(request: NextRequest) {
     enablePoweredByChubb: updated.enablePoweredByChubb,
     offerAtCheckout: updated.offerAtCheckout,
     claimPortalConfigured: updated.claimPortalConfigured,
+    itemProtectionProductId: updated.itemProtectionProductId ?? undefined,
+    itemProtectionVariantId: updated.itemProtectionVariantId ?? undefined,
   });
 }

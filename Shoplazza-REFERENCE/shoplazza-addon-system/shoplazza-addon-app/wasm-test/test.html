@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WASM Test</title>
+</head>
+<body>
+    <h1>WASM Test</h1>
+    <button onclick="testWasm()">Test WASM</button>
+    <div id="result"></div>
+
+    <script type="module">
+        import init, { processCart } from './pkg/wasm_test.js';
+        
+        // Initialize the WASM module
+        init().then(() => {
+            console.log('✅ WASM initialized successfully');
+            console.log('Available functions:', Object.keys({ processCart }));
+            
+            // Make processCart available globally
+            window.processCart = processCart;
+        }).catch(error => {
+            console.error('❌ Failed to initialize WASM:', error);
+        });
+    </script>
+
+    <script>
+        async function testWasm() {
+            try {
+                if (!window.processCart) {
+                    document.getElementById('result').innerHTML = '❌ WASM not ready yet';
+                    return;
+                }
+                
+                const input = JSON.stringify({
+                    "cart": {
+                        "line_items": [
+                            {
+                                "id": "1",
+                                "product": {
+                                    "product_id": "0224fbd2-6da3-464f-89d5",
+                                    "variant_id": "eab62bba-c49f-426c-8d88",
+                                    "price": "50.00",
+                                    "product_title": "Premium T-Shirt",
+                                    "metafields": []
+                                },
+                                "properties": "{\"addon\":{\"type\":\"protection_plan\",\"name\":\"Extended Warranty\",\"price\":19.99,\"sku\":\"WARR-001\",\"description\":\"2-year extended warranty coverage\",\"variantId\":\"warr-var-001\",\"compressed\":true}}",
+                                "quantity": 1
+                            }
+                        ]
+                    },
+                    "currency_settings": {
+                        "actual_rate": "1"
+                    }
+                });
+                console.log('Calling processCart with:', input);
+                
+                const result = processCart(input);
+                console.log('Result:', result);
+                console.log('Result type:', typeof result);
+                
+                document.getElementById('result').innerHTML = `
+                    <h3>Success!</h3>
+                    <p><strong>Input:</strong> ${input}</p>
+                    <p><strong>Output:</strong> ${result}</p>
+                    <p><strong>Type:</strong> ${typeof result}</p>
+                `;
+                
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('result').innerHTML = `❌ Error: ${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html>

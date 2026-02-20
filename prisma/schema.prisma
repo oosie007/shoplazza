@@ -44,6 +44,9 @@ model StoreSettings {
   enablePoweredByChubb  Boolean  @default(true)
   offerAtCheckout       Boolean  @default(true)
   claimPortalConfigured Boolean  @default(false)
+  // Cart API: add Item Protection as a line item (product) when toggle ON. Optional.
+  itemProtectionProductId String?
+  itemProtectionVariantId  String?
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 

@@ -1,17 +1,49 @@
 // Lightweight checkout widget script for Shoplazza.
 // Load this script on every checkout step (Contact, Shipping, Payment) so the widget appears automatically.
 // Requires: window.CD_INSURE_APP_URL (your app URL) and window.SHOPLAZZA_SHOP_DOMAIN (or we derive from location.hostname).
+// Debug on mobile: add ?cd_debug=1 to checkout URL, or on same store run localStorage.setItem('cd_insure_debug','1') then open checkout on phone.
 
 (function () {
   const shopDomain = window.SHOPLAZZA_SHOP_DOMAIN || (typeof location !== "undefined" && location.hostname ? location.hostname : "");
   const hasCheckoutAPI = typeof CheckoutAPI !== "undefined";
   const APP_BASE_URL = window.CD_INSURE_APP_URL || "";
 
+  var debugEnabled = false;
+  var debugEl = null;
+  try {
+    debugEnabled = (typeof location !== "undefined" && (location.search.indexOf("cd_debug=1") !== -1 || location.hash === "#cd_debug")) ||
+      (typeof localStorage !== "undefined" && localStorage.getItem("cd_insure_debug") === "1");
+  } catch (e) {}
+  function debugLog(msg, isError) {
+    if (!debugEnabled) return;
+    if (typeof console !== "undefined") {
+      if (isError && console.warn) console.warn("[CD Insure]", msg);
+      else if (console.log) console.log("[CD Insure]", msg);
+    }
+    try {
+      if (!debugEl && typeof document !== "undefined") {
+        debugEl = document.createElement("div");
+        debugEl.id = "cd-insure-debug";
+        debugEl.style.cssText = "position:fixed;bottom:8px;right:8px;max-width:90%;max-height:200px;overflow:auto;background:rgba(0,0,0,0.88);color:#0f0;font:11px monospace;padding:8px;border-radius:6px;z-index:999999;white-space:pre-wrap;word-break:break-all;";
+        document.body.appendChild(debugEl);
+      }
+      if (debugEl) {
+        var line = document.createElement("div");
+        line.style.color = isError ? "#f88" : "#afa";
+        line.textContent = (typeof performance !== "undefined" && performance.now ? "t+" + Math.round(performance.now()) + "ms " : "") + msg;
+        debugEl.appendChild(line);
+        debugEl.scrollTop = debugEl.scrollHeight;
+      }
+    } catch (e) {}
+  }
+
   if (!shopDomain) {
+    debugLog("No shopDomain – exit", true);
     return;
   }
+  debugLog("script loaded shop=" + shopDomain + " appUrl=" + (APP_BASE_URL ? "set" : "MISSING"));
   if (typeof console !== "undefined" && console.log) {
-    console.log("[CD Insure] checkout-widget.js loaded, shop=" + shopDomain + ", appUrl=" + (APP_BASE_URL ? "set" : "MISSING"));
+    console.log("[CD Insure] checkout-widget.js loaded, shop=" + shopDomain + ", appUrl=" + (APP_BASE_URL || "MISSING"));
   }
 
   let settings = null;
@@ -19,14 +51,28 @@
   let toggleOn = false;
 
   function fetchSettings() {
-    if (!APP_BASE_URL) return Promise.resolve(null);
+    if (!APP_BASE_URL) {
+      debugLog("fetchSettings: no APP_BASE_URL", true);
+      return Promise.resolve(null);
+    }
+    debugLog("fetchSettings start " + APP_BASE_URL + "/api/public-settings");
     return fetch(
       APP_BASE_URL +
         "/api/public-settings?shop=" +
         encodeURIComponent(shopDomain)
     )
-      .then((r) => (r.ok ? r.json() : null))
-      .catch(() => null);
+      .then((r) => {
+        if (r.ok) {
+          debugLog("fetchSettings ok " + r.status);
+          return r.json();
+        }
+        debugLog("fetchSettings fail " + r.status + " " + r.statusText, true);
+        return null;
+      })
+      .catch(function (err) {
+        debugLog("fetchSettings network err " + (err && err.message ? err.message : String(err)), true);
+        return null;
+      });
   }
 
   /** Optional map productId -> categoryId from backend when checkout doesn't provide category per product. */
@@ -231,6 +277,93 @@
       .catch(function () { return doPriceRequest(); });
   }
 
+  /**
+   * Add or remove Item Protection as a cart line item using Shoplazza Cart API.
+   * When itemProtectionProductId and itemProtectionVariantId are set in settings,
+   * toggle ON adds the product to cart; toggle OFF removes it. Cart totals update automatically.
+   * @see https://www.shoplazza.dev/docs/cart-api-reference
+   */
+  function applyPremiumViaCartAPI(enabled) {
+    const productId = settings && settings.itemProtectionProductId;
+    const variantId = settings && settings.itemProtectionVariantId;
+    if (!productId || !variantId) return;
+    const base = (typeof window !== "undefined" && window.SHOPLAZZA && window.SHOPLAZZA.routes && window.SHOPLAZZA.routes.root)
+      ? window.SHOPLAZZA.routes.root
+      : getStoreOrigin();
+    const cartUrl = base + "/api/cart";
+
+    if (enabled) {
+      fetch(cartUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          product_id: productId,
+          variant_id: variantId,
+          quantity: 1,
+          refer_info: { source: "add_to_cart" },
+        }),
+        credentials: "same-origin",
+      })
+        .then(function (res) {
+          if (res && res.ok) {
+            debugLog("Cart API: added Item Protection line");
+            if (hasCheckoutAPI && CheckoutAPI.store && typeof CheckoutAPI.store.onPricesChange === "function") {
+              try {
+                var prices = CheckoutAPI.store.getPrices && CheckoutAPI.store.getPrices();
+                if (prices) CheckoutAPI.store.onPricesChange(prices);
+              } catch (e) {}
+            }
+          } else {
+            debugLog("Cart API add failed " + (res ? res.status : "no res"), true);
+          }
+        })
+        .catch(function (err) {
+          debugLog("Cart API add err " + (err && err.message ? err.message : String(err)), true);
+        });
+      return;
+    }
+
+    // Remove: get cart, find our product line, then DELETE
+    fetch(cartUrl, { method: "GET", headers: { "Content-Type": "application/json" }, credentials: "same-origin" })
+      .then(function (res) { return res.ok ? res.json() : null; })
+      .then(function (data) {
+        var cart = data && data.cart;
+        var items = cart && cart.line_items;
+        if (!Array.isArray(items)) return;
+        var line = items.find(function (item) {
+          var pid = item.product_id != null ? String(item.product_id) : (item.productId != null ? String(item.productId) : "");
+          return pid === String(productId);
+        });
+        if (!line) {
+          debugLog("Cart API: no Item Protection line to remove");
+          return;
+        }
+        var vid = line.variant_id != null ? line.variant_id : line.variantId;
+        var id = line.id;
+        if (!vid) return;
+        return fetch(cartUrl + "/" + encodeURIComponent(vid), {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: id, product_id: productId, variant_id: vid }),
+          credentials: "same-origin",
+        });
+      })
+      .then(function (res) {
+        if (res && res.ok) {
+          debugLog("Cart API: removed Item Protection line");
+          if (hasCheckoutAPI && CheckoutAPI.store && typeof CheckoutAPI.store.onPricesChange === "function") {
+            try {
+              var prices = CheckoutAPI.store.getPrices && CheckoutAPI.store.getPrices();
+              if (prices) CheckoutAPI.store.onPricesChange(prices);
+            } catch (e) {}
+          }
+        }
+      })
+      .catch(function (err) {
+        debugLog("Cart API remove err " + (err && err.message ? err.message : String(err)), true);
+      });
+  }
+
   /** Notify our backend for logging / future server-side fee API. */
   function applyPremiumViaBackend(enabled) {
     if (!APP_BASE_URL || !shopDomain) return;
@@ -264,6 +397,8 @@
     if (typeof window.PaymentEC === "object" && window.PaymentEC != null && typeof window.PaymentEC.setAdditionalPrices === "function") {
       window.PaymentEC.setAdditionalPrices(payload);
     }
+    // Cart API: add/remove Item Protection as a line item when product/variant IDs are configured
+    applyPremiumViaCartAPI(enabled);
     applyPremiumViaStoreCheckout(enabled);
     applyPremiumViaBackend(enabled);
   }
@@ -410,12 +545,14 @@
     try {
       retryCount = retryCount || 0;
       const maxRetries = 12;
+      debugLog("mount() retry=" + retryCount + " CheckoutAPI=" + (hasCheckoutAPI ? "yes" : "no"));
       let root = document.querySelector("#cd-insure-widget-root");
       if (!root) {
         const target = getMountTarget();
         const step = hasCheckoutAPI && CheckoutAPI.step && typeof CheckoutAPI.step.getStep === "function" ? CheckoutAPI.step.getStep() : null;
         const preferLeft = step === "contact_information" || step === "shipping_method";
         if (preferLeft && (!target || target === document.body) && retryCount < maxRetries) {
+          debugLog("mount: waiting for target (retry " + (retryCount + 1) + ")");
           setTimeout(function () { mount(retryCount + 1); }, 300);
           return;
         }
@@ -423,12 +560,14 @@
         root.id = "cd-insure-widget-root";
         root.style.marginTop = "16px";
         (target || document.body).appendChild(root);
+        debugLog("mount: root created");
       }
 
       fetchSettings().then((cfg) => {
       settings = cfg;
 
       if (!settings) {
+        debugLog("settings null – placeholder", true);
         if (typeof console !== "undefined" && console.warn) {
           console.warn("[CD Insure] Settings not loaded (check app URL and that store is installed). Showing placeholder.");
         }
@@ -436,6 +575,7 @@
         return;
       }
       if (settings.offerAtCheckout === false) {
+        debugLog("offerAtCheckout=false – hide");
         root.innerHTML = "";
         return;
       }
@@ -451,6 +591,7 @@
         }
         fetchProductCategoryMap(products).then(function (map) {
           premiumAmount = computePremium(prices, products, map);
+          debugLog("premium=" + premiumAmount + " rendering");
           if (typeof console !== "undefined" && console.log) {
             console.log("[CD Insure] premiumAmount=" + premiumAmount);
           }
@@ -463,6 +604,7 @@
       } else {
         // No CheckoutAPI in this context (e.g. testing from console) – just use a fixed sample amount.
         premiumAmount = 4.69;
+        debugLog("no CheckoutAPI – sample premium, rendering");
         if (settings.defaultAtCheckout === true && !toggleOn) {
           toggleOn = true;
           applyPremium(true);
@@ -491,6 +633,7 @@
         });
       }
     }).catch(function (err) {
+      debugLog("mount fetchSettings catch " + (err && err.message ? err.message : String(err)), true);
       if (typeof console !== "undefined" && console.warn) {
         console.warn("[CD Insure] mount failed:", err);
       }
@@ -499,6 +642,7 @@
       }
     });
     } catch (err) {
+      debugLog("mount threw " + (err && err.message ? err.message : String(err)), true);
       if (typeof console !== "undefined" && console.warn) {
         console.warn("[CD Insure] mount threw:", err);
       }

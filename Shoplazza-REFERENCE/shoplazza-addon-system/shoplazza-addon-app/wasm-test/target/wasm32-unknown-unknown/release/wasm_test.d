@@ -1,0 +1,1 @@
+/Users/leroi/Development/Cursor/Shoplazza/shoplazza-addon-system/shoplazza-addon-app/wasm-test/target/wasm32-unknown-unknown/release/wasm_test.wasm: /Users/leroi/Development/Cursor/Shoplazza/shoplazza-addon-system/shoplazza-addon-app/wasm-test/src/lib.rs

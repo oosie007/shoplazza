@@ -60,6 +60,16 @@ Run the CLI from the **repo root** only (where `extension.config.js` and `extens
 
 So: **generated project = CLI structure + our `extension.json` + our built `extension.js`.**
 
+### 6. Create the extension (one-time; required before deploy)
+
+If **`shoplazza checkout deploy`** says **“No extensions available to deploy”**, the extension hasn’t been created yet. From the repo root run:
+
+```bash
+shoplazza checkout create
+```
+
+When prompted, enter **project name** (e.g. `cd-insure-item-protection`), **store URL** (e.g. `https://your-store.myshoplaza.com/`), and **token** (from Apps → Manage Private Apps → Create App). That registers the extension so `deploy` and `push` can use it.
+
 ### 7. Local dev
 
 From the **shoplaza repo root** (where `extension.config.js` and `extensions/` live):
@@ -97,37 +107,16 @@ After this, the extension is deployed. If it’s linked to your app in Partner C
 
 ---
 
-## Path B: Partner Center (upload extension)
+## Path B: Partner Center (link extension only – no zip upload)
 
-Use this if you don’t use the CLI or want to upload the extension from this repo directly.
+**Note:** Shoplazza’s Partner Center **does not currently offer a zip upload** for checkout extensions. You must create and deploy the extension via the **CLI** (Path A). In Partner Center you only **link** the deployed extension to your app.
 
-### 1. Build the extension
-
-From the **shoplaza** repo root:
-
-```bash
-npm run build:extension
-```
-
-### 2. Create a zip for upload
-
-From the repo root:
-
-```bash
-npm run zip:extension
-```
-
-This creates **`checkout-extension/cd-insure-checkout-extension.zip`** containing `extension.json` and `dist/extension.js`.
-
-### 3. Add extension in Partner Center
-
-- Go to [Partner Center](https://partners.shoplazza.com) → **Apps** → your app **CD_Insure**.
-- Open **App setup** / **Development** and find **Checkout** or **Extensions**.
-- Add a **Checkout extension** (or “Upload extension”).
-- Upload **`checkout-extension/cd-insure-checkout-extension.zip`** (or the contents: `extension.json` + `dist/extension.js` in the structure Partner Center expects).
+- Go to [Partner Center](https://partners.shoplazza.com) → **Apps** → your app (**CD_Insure**).
+- Open **App setup** / **Development** and find **Checkout** or **Extensions** (if available).
+- **Link** or **add** the extension you deployed via `shoplazza checkout deploy` so that stores installing your app get the widget on checkout.
 - Save and publish the app version if required.
 
-### 4. After deploy
+### After deploy
 
 - Install (or reinstall) your app on a test store.
 - Go to checkout (Contact step). The Item Protection widget should appear.
@@ -139,7 +128,7 @@ This creates **`checkout-extension/cd-insure-checkout-extension.zip`** containin
 
 - [ ] App URL is set (e.g. in `.env.local` as `NEXT_PUBLIC_APP_URL` or in `checkout-extension/config.js`).
 - [ ] `npm run build:extension` runs and prints your APP_URL.
-- [ ] Either: CLI project created and our `extension.json` + `dist/extension.js` copied in, **or** zip created and uploaded in Partner Center.
+- [ ] Extension created via `shoplazza checkout create` (one-time), then deploy with `shoplazza checkout deploy`. Partner Center has no zip upload for checkout extensions.
 - [ ] Dev mode tested with `CheckoutAPI.extension.DEV_switchDevMode()` (CLI path).
 - [ ] Extension deployed (`shoplazza checkout deploy` or Partner Center upload).
 - [ ] App installed on test store; widget visible on checkout when **Activate** is on.
@@ -159,6 +148,7 @@ This creates **`checkout-extension/cd-insure-checkout-extension.zip`** containin
 - **Insurance line / total not updating when toggle is on**  
   - The widget calls the store's `POST /api/checkout/pkg_set` then `POST /api/checkout/price`. If you see **pkg_set 404** in the Network tab, the store has no handler for your app yet. Apps like "Worry-Free Delivery" register a **checkout package** with Shoplazza so the store exposes `pkg_set` and adds their fee when price is recalculated. In **Partner Center** → your app → look for **Checkout**, **Packages**, or **Extensions** and add/register a checkout package (insurance product) so the store can add your fee. The widget also tries sending `additional_prices` in the price request; if the store accepts that, the total may update without pkg_set.
 
+- **“No extensions available to deploy”**  
+  - Run **`shoplazza checkout create`** from the repo root first. Enter project name, store URL, and token when prompted. Then run `shoplazza checkout deploy` again.
 - **CLI “checkout create” not found**  
-  - Some versions use **Apps** → **Extensions**: try `shoplazza app generate extension` and choose checkout, then use our `extension.json` and `dist/extension.js` in the generated project.  
-  - Or use **Partner Center** (Path B) to upload the zip.
+  - Ensure you have the latest Shoplazza CLI. Some versions use **Apps** → **Extensions**: try `shoplazza app generate extension` and choose checkout, then use our `extension.json` and `dist/extension.js` in the generated project.

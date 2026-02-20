@@ -1,0 +1,17 @@
+{
+  "name": "cd-insure-item-protection3",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "dependencies": {
+    "fs-extra": "11.1.1",
+    "shoplazza-extension-ui": "1.0.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}

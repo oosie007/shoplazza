@@ -50,6 +50,8 @@ export async function GET(request: NextRequest) {
     enablePoweredByChubb: s.enablePoweredByChubb,
     offerAtCheckout: s.offerAtCheckout,
     defaultAtCheckout: s.defaultAtCheckout,
+    itemProtectionProductId: s.itemProtectionProductId ?? undefined,
+    itemProtectionVariantId: s.itemProtectionVariantId ?? undefined,
   }));
 }
 

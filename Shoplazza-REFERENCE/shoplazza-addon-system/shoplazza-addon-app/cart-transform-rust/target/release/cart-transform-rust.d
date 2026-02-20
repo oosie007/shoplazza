@@ -1,0 +1,1 @@
+/Users/leroi/Development/Cursor/Shoplazza/shoplazza-addon-system/shoplazza-addon-app/cart-transform-rust/target/release/cart-transform-rust: /Users/leroi/Development/Cursor/Shoplazza/shoplazza-addon-system/shoplazza-addon-app/cart-transform-rust/src/lib.rs /Users/leroi/Development/Cursor/Shoplazza/shoplazza-addon-system/shoplazza-addon-app/cart-transform-rust/src/main.rs
