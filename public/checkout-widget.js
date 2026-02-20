@@ -300,10 +300,10 @@
   }
 
   /**
-   * After Cart API add/remove, refetch price from store so Shoplazza runs Cart Transform
-   * and we push the new total to the checkout UI via onPricesChange.
-   * If checkout uses a snapshot from when the customer entered, the line may not appear
-   * until they go back to cart and return to checkout (or refresh).
+   * After Cart API add/remove, refetch price from store and call onPricesChange(data).
+   * Shoplazza's checkout may not re-render the displayed Total from onPricesChange
+   * (UI can stay at $200 while API returns total_price 210). Workaround: turn on Item
+   * Protection on the cart page before going to checkout, or refresh the checkout page after toggling.
    */
   function refreshCheckoutPriceAfterCartChange() {
     var orderToken = getOrderToken();
@@ -328,13 +328,17 @@
               var data = pricesFromServer.data || pricesFromServer;
               var prices = data.prices || data;
               var items = data.line_items || data.lineItems || [];
-              var payload = Object.assign({}, prices, { line_items: items });
-              var total = payload.total_price != null ? payload.total_price : payload.total;
+              var total = prices.total_price != null ? prices.total_price : prices.total;
               var count = Array.isArray(items) ? items.length : 0;
               if (typeof console !== "undefined" && console.log) {
                 console.log("[CD Insure] Price response total=" + total + " line_items=" + count + ", calling onPricesChange");
               }
-              CheckoutAPI.store.onPricesChange(payload);
+              if (data.prices && data.line_items) {
+                CheckoutAPI.store.onPricesChange(data);
+              } else {
+                var flat = Object.assign({}, prices, { line_items: items });
+                CheckoutAPI.store.onPricesChange(flat);
+              }
             } catch (e) {
               if (typeof console !== "undefined" && console.warn) console.warn("[CD Insure] onPricesChange error", e);
             }
