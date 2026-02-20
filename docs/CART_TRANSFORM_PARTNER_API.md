@@ -35,7 +35,7 @@ The reference builds a **WASM** from JavaScript (Javy) and sends it as `file`. T
 
 - **URL:** `POST https://{shop}/openapi/2024-07/function/cart-transform`
 - **Headers:** `Access-Token: <store_access_token>`
-- **Body (JSON):** `{ "function_id": "<id from Create>" }`
+- **Body (JSON):** `{ "id": "<function id from Create>" }` — the store API expects the field name **`id`** (not `function_id`); value is the function id from Partner API Create.
 
 ## Flow in the reference
 

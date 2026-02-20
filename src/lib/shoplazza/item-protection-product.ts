@@ -350,8 +350,9 @@ async function createFunctionViaPartnerAPI(
   }
   try {
     const data = text ? JSON.parse(text) : {};
-    const id = data?.id ?? data?.data?.id ?? data?.function_id ?? data?.data?.function_id;
-    if (id != null && typeof id === "string") {
+    const rawId = data?.id ?? data?.data?.id ?? data?.function_id ?? data?.data?.function_id;
+    if (rawId != null) {
+      const id = String(rawId);
       console.info("[item-protection-product] Partner API Create function succeeded, id:", id);
       return { ok: true, id };
     }
@@ -411,7 +412,7 @@ async function createFunctionWithCode(
 
 /**
  * Bind Cart Transform with a function id. POST .../openapi/2024-07/function/cart-transform
- * Body: { function_id: string }
+ * Store API expects body: { id: string } (function id from Partner API Create).
  * @see https://www.shoplazza.dev/v2024.07/reference/bind-cart-transform-function
  */
 async function bindCartTransformByFunctionId(
@@ -420,10 +421,11 @@ async function bindCartTransformByFunctionId(
   functionId: string
 ): Promise<{ ok: true } | { ok: false; status: number; body: string }> {
   const url = `https://${host}/openapi/${CART_TRANSFORM_OPENAPI_VERSION}/function/cart-transform`;
+  const id = String(functionId);
   const res = await fetch(url, {
     method: "POST",
     headers: cartTransformHeaders(accessToken),
-    body: JSON.stringify({ function_id: functionId }),
+    body: JSON.stringify({ id }),
   });
   const text = await res.text();
   if (!res.ok) {
