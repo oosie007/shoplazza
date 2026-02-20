@@ -314,6 +314,9 @@
     const cartUrl = base + "/api/cart";
 
     if (enabled) {
+      if (typeof console !== "undefined" && console.log) {
+        console.log("[CD Insure] Cart API: POST " + cartUrl + " with product_id=" + productId + " variant_id=" + variantId);
+      }
       fetch(cartUrl, {
         method: "POST",
         headers: {
@@ -329,6 +332,9 @@
         credentials: "same-origin",
       })
         .then(function (res) {
+          if (typeof console !== "undefined" && console.log) {
+            console.log("[CD Insure] Cart API response: status " + (res ? res.status : "none"));
+          }
           if (res && res.ok) {
             debugLog("Cart API: added Item Protection line");
             if (hasCheckoutAPI && CheckoutAPI.store && typeof CheckoutAPI.store.onPricesChange === "function") {
@@ -339,14 +345,17 @@
             }
           } else {
             debugLog("Cart API add failed " + (res ? res.status : "no res"), true);
-            if (res && res.status === 406 && typeof console !== "undefined" && console.warn) {
+            if (res && typeof console !== "undefined" && console.warn) {
               res.text().then(function (body) {
-                console.warn("[CD Insure] Cart POST 406 response:", body.slice(0, 200));
+                console.warn("[CD Insure] Cart POST " + res.status + " response:", body.slice(0, 300));
               }).catch(function () {});
             }
           }
         })
         .catch(function (err) {
+          if (typeof console !== "undefined" && console.warn) {
+            console.warn("[CD Insure] Cart API fetch error:", err && err.message ? err.message : err);
+          }
           debugLog("Cart API add err " + (err && err.message ? err.message : String(err)), true);
         });
       return;
