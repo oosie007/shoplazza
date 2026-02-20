@@ -204,12 +204,15 @@ export async function ensureItemProtectionProductWithError(
     },
   });
   const callbackUrl = `${callbackBaseUrl.replace(/\/$/, "")}/api/shoplazza/cart-transform`;
-  const bound = await bindCartTransform(shop, accessToken, callbackUrl);
-  if (!bound) {
-    console.warn("[item-protection-product] Cart Transform bind failed; product was created and IDs saved.");
+  const bindResult = await bindCartTransformWithResult(shop, accessToken, callbackUrl);
+  if (!bindResult.ok) {
+    const detail = "status" in bindResult ? `${bindResult.status} ${bindResult.body}` : bindResult.error;
+    console.warn("[item-protection-product] Cart Transform bind failed; product was created and IDs saved.", detail);
   }
   return created;
 }
+
+export type BindCartTransformResult = { ok: true } | { ok: false; status: number; body: string } | { ok: false; error: string };
 
 /**
  * Bind our Cart Transform function URL to the store so Shoplazza calls us
@@ -221,6 +224,15 @@ export async function bindCartTransform(
   accessToken: string,
   callbackUrl: string
 ): Promise<boolean> {
+  const result = await bindCartTransformWithResult(shop, accessToken, callbackUrl);
+  return result.ok;
+}
+
+export async function bindCartTransformWithResult(
+  shop: string,
+  accessToken: string,
+  callbackUrl: string
+): Promise<BindCartTransformResult> {
   const host = normalizeShop(shop);
   const url = `https://${host}/openapi/${CART_TRANSFORM_OPENAPI_VERSION}/function/cart-transform`;
 
@@ -239,14 +251,16 @@ export async function bindCartTransform(
       }),
     });
 
+    const text = await res.text();
     if (!res.ok) {
-      const text = await res.text();
       console.warn("[item-protection-product] Bind cart-transform failed:", res.status, text);
-      return false;
+      return { ok: false, status: res.status, body: text };
     }
-    return true;
+    console.info("[item-protection-product] Bind cart-transform succeeded:", res.status, text.slice(0, 200));
+    return { ok: true };
   } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
     console.warn("[item-protection-product] Bind cart-transform error:", err);
-    return false;
+    return { ok: false, error: msg };
   }
 }

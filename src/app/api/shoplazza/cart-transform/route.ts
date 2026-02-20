@@ -15,7 +15,15 @@ import { getStoreByShop } from "@/lib/shoplazza/store";
  * @see https://www.shoplazza.dev/v2024.07/reference/bind-cart-transform-function
  * @see docs/CART_TRANSFORM_FLOW.md
  */
+
+/** GET: health check so you can confirm the callback URL is reachable (e.g. from a browser). */
+export async function GET() {
+  console.info("[cart-transform] GET health check");
+  return NextResponse.json({ ok: true, message: "Cart Transform endpoint is reachable" });
+}
+
 export async function POST(request: NextRequest) {
+  console.info("[cart-transform] POST received");
   let body: unknown;
   try {
     body = await request.json();

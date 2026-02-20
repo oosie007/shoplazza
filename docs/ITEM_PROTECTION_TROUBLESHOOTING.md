@@ -57,6 +57,9 @@ You can ignore **pkg_set 404**. We don’t use that path; we use the Cart API (a
 If the Item Protection **line** is in the cart (you see it in the cart API response with price "0.00") but the **checkout total doesn’t include the $40**:
 
 - Our **Cart Transform** is supposed to set that line’s price. Check your **Vercel (or app) logs** for `[cart-transform]` when you load checkout or the cart. If that log **never** appears, Shoplazza is not calling our callback (bind may have failed or the store may not use it on checkout). If it **does** appear, the log shows the line id and the price we’re returning.
+- **Re-bind and verify URL:**
+  1. In app admin → Configuration, click **“Re-bind Cart Transform”**. If it fails, the UI shows the Shoplazza API response (status + body); check Vercel logs for `[item-protection-product] Bind cart-transform` to see success or failure.
+  2. Confirm the callback URL is reachable: open `https://<your-app-url>/api/shoplazza/cart-transform` in a browser. You should see `{"ok":true,"message":"Cart Transform endpoint is reachable"}`. If that fails, Shoplazza can’t call the callback.
 - **pkg_set 404** is unrelated; we don’t use that. We use Cart API (add line) + Cart Transform (set price).
 
 ---

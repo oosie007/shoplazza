@@ -45,6 +45,8 @@ export function ConfigurationContent() {
   const [categoriesError, setCategoriesError] = useState<string | null>(null);
   const [ensureLoading, setEnsureLoading] = useState(false);
   const [ensureMessage, setEnsureMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [bindLoading, setBindLoading] = useState(false);
+  const [bindMessage, setBindMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   useEffect(() => {
     setShop(getShopFromQuery());
@@ -435,6 +437,65 @@ export function ConfigurationContent() {
                 className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-700 shadow-sm hover:bg-zinc-50 disabled:opacity-50"
               >
                 {ensureLoading ? "Creating…" : "Create Item Protection product now"}
+              </button>
+              {bindMessage && (
+                <div
+                  className={
+                    "rounded-md border px-3 py-2 text-sm " +
+                    (bindMessage.type === "success"
+                      ? "border-green-200 bg-green-50 text-green-800"
+                      : "border-red-200 bg-red-50 text-red-800")
+                  }
+                >
+                  {bindMessage.text}
+                </div>
+              )}
+              <button
+                type="button"
+                disabled={!shop || bindLoading}
+                onClick={async () => {
+                  if (!shop) return;
+                  setBindMessage(null);
+                  setBindLoading(true);
+                  try {
+                    const res = await fetch(
+                      `${APP_URL}/api/admin/bind-cart-transform?shop=${encodeURIComponent(shop)}`,
+                      { method: "POST" }
+                    );
+                    const data = (await res.json()) as {
+                      ok: boolean;
+                      error?: string;
+                      message?: string;
+                      status?: number;
+                      body?: string;
+                    };
+                    if (data.ok) {
+                      setBindMessage({
+                        type: "success",
+                        text: data.message ?? "Cart Transform bound successfully. Check Vercel logs for [cart-transform] when the cart is loaded.",
+                      });
+                    } else {
+                      const detail =
+                        data.status != null && data.body != null
+                          ? `HTTP ${data.status}: ${data.body}`
+                          : data.error ?? "Unknown error";
+                      setBindMessage({
+                        type: "error",
+                        text: `Bind failed: ${detail}`,
+                      });
+                    }
+                  } catch (e) {
+                    setBindMessage({
+                      type: "error",
+                      text: e instanceof Error ? e.message : String(e),
+                    });
+                  } finally {
+                    setBindLoading(false);
+                  }
+                }}
+                className="ml-2 rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-700 shadow-sm hover:bg-zinc-50 disabled:opacity-50"
+              >
+                {bindLoading ? "Binding…" : "Re-bind Cart Transform"}
               </button>
               <label className="block text-sm font-medium text-zinc-700">
                 Item Protection product ID (leave blank unless fallback)
