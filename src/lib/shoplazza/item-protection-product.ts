@@ -47,11 +47,13 @@ export async function createItemProtectionProductWithError(
   const host = normalizeShop(shop);
   const url = `https://${host}/openapi/${PRODUCTS_OPENAPI_VERSION}/products`;
 
-  const body = {
+  // 2025-06 API expects CreateProductRequest with product object; Product.values is required.
+  const product = {
     title: "Item protection",
     brief: "Protection for your order (added at checkout).",
     has_only_default_variant: true,
     options: [{ name: "Title", values: ["Default"] }],
+    values: ["Default"],
     images: [],
     variants: [
       {
@@ -64,6 +66,7 @@ export async function createItemProtectionProductWithError(
     published: false,
     requires_shipping: false,
   };
+  const body = { product };
 
   try {
     const res = await fetch(url, {
