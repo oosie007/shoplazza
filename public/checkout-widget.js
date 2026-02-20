@@ -258,7 +258,6 @@
     } else {
       pricePayload.additional_prices = [];
     }
-    pricePayload.addtional_prices = pricePayload.additional_prices;
 
     function doPriceRequest() {
       return fetch(origin + "/api/checkout/price", {
@@ -539,11 +538,20 @@
           if (res && res.ok) {
             debugLog("Cart API: added Item Protection line");
             if (typeof console !== "undefined" && console.log) {
-              console.log("[CD Insure] Item Protection line added (200). Refetching price so Cart Transform total appears.");
+              console.log("[CD Insure] Item Protection line added (200). Refetching price, then reloading so cart shows the new line and total.");
             }
             refreshCheckoutPriceAfterCartChange();
-            setTimeout(function () { refreshCheckoutPriceAfterCartChange(); }, 1200);
-            showRefreshHint("added");
+            setTimeout(function () {
+              refreshCheckoutPriceAfterCartChange();
+              showRefreshHint("added");
+              setTimeout(function () {
+                try {
+                  if (typeof location !== "undefined" && location.reload) {
+                    location.reload();
+                  }
+                } catch (e) {}
+              }, 800);
+            }, 1200);
           } else {
             debugLog("Cart API add failed " + (res ? res.status : "no res"), true);
             if (res && typeof console !== "undefined" && console.warn) {
