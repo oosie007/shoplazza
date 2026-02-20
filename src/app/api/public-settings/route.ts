@@ -43,10 +43,12 @@ export async function GET(request: NextRequest) {
         store.settings.id,
         base
       );
-      store = await getStoreByShop(shop);
     } catch (err) {
-      console.warn("[public-settings] ensureItemProtectionProduct failed:", err);
+      const msg = err instanceof Error ? err.message : String(err);
+      const stack = err instanceof Error ? err.stack : undefined;
+      console.error("[public-settings] ensureItemProtectionProduct failed for shop=" + shop + ":", msg, stack || "");
     }
+    store = await getStoreByShop(shop);
   }
 
   const settings = (store?.settings ?? s) as any;

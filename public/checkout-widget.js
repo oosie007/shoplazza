@@ -585,6 +585,32 @@
         return;
       }
 
+      // If app is active but product IDs are missing, backend may still be creating the product. Refetch once.
+      if (settings.activated && !settings.itemProtectionProductId && !window.__cd_insure_settings_refetched) {
+        window.__cd_insure_settings_refetched = true;
+        setTimeout(function () {
+          fetchSettings().then(function (cfg2) {
+            if (cfg2 && cfg2.itemProtectionProductId && cfg2.itemProtectionVariantId) {
+              settings = cfg2;
+              debugLog("Refetched settings – product IDs now available");
+              if (typeof console !== "undefined" && console.log) {
+                console.log("[CD Insure] Refetched settings – Item Protection product IDs now available. Toggle will add/remove cart line.");
+              }
+              if (hasCheckoutAPI && CheckoutAPI.store && CheckoutAPI.store.getPrices) {
+                var prices = CheckoutAPI.store.getPrices();
+                var products = CheckoutAPI.summary && CheckoutAPI.summary.getProductList ? CheckoutAPI.summary.getProductList() : [];
+                fetchProductCategoryMap(products).then(function (map) {
+                  premiumAmount = computePremium(prices, products, map);
+                  renderWidget(root);
+                });
+              } else {
+                renderWidget(root);
+              }
+            }
+          });
+        }, 2000);
+      }
+
       if (hasCheckoutAPI && CheckoutAPI.store && CheckoutAPI.store.getPrices) {
         const prices = CheckoutAPI.store.getPrices();
         const products =
