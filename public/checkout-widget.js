@@ -324,14 +324,17 @@
         if (res && res.ok && hasCheckoutAPI && CheckoutAPI.store && typeof CheckoutAPI.store.onPricesChange === "function") {
           res.json().then(function (pricesFromServer) {
             try {
-              if (pricesFromServer) {
-                if (typeof console !== "undefined" && console.log) {
-                  var total = pricesFromServer.total_price != null ? pricesFromServer.total_price : pricesFromServer.total;
-                  var count = Array.isArray(pricesFromServer.line_items) ? pricesFromServer.line_items.length : 0;
-                  console.log("[CD Insure] Price response total=" + total + " line_items=" + count + ", calling onPricesChange");
-                }
-                CheckoutAPI.store.onPricesChange(pricesFromServer);
+              if (!pricesFromServer) return;
+              var data = pricesFromServer.data || pricesFromServer;
+              var prices = data.prices || data;
+              var items = data.line_items || data.lineItems || [];
+              var payload = Object.assign({}, prices, { line_items: items });
+              var total = payload.total_price != null ? payload.total_price : payload.total;
+              var count = Array.isArray(items) ? items.length : 0;
+              if (typeof console !== "undefined" && console.log) {
+                console.log("[CD Insure] Price response total=" + total + " line_items=" + count + ", calling onPricesChange");
               }
+              CheckoutAPI.store.onPricesChange(payload);
             } catch (e) {
               if (typeof console !== "undefined" && console.warn) console.warn("[CD Insure] onPricesChange error", e);
             }
