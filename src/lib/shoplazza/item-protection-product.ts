@@ -90,6 +90,33 @@ export async function createItemProtectionProduct(
 }
 
 /**
+ * Ensure the store has an Item Protection product and its IDs saved.
+ * If settings.itemProtectionProductId is missing, creates the product via OpenAPI,
+ * updates StoreSettings, and binds the Cart Transform callback.
+ * Call this from install callback or from public-settings so merchants never have to configure anything.
+ */
+export async function ensureItemProtectionProduct(
+  shop: string,
+  accessToken: string,
+  storeSettingsId: string,
+  callbackBaseUrl: string
+): Promise<{ productId: string; variantId: string } | null> {
+  const created = await createItemProtectionProduct(shop, accessToken);
+  if (!created) return null;
+  const { prisma } = await import("@/lib/db");
+  await prisma.storeSettings.update({
+    where: { id: storeSettingsId },
+    data: {
+      itemProtectionProductId: created.productId,
+      itemProtectionVariantId: created.variantId,
+    },
+  });
+  const callbackUrl = `${callbackBaseUrl.replace(/\/$/, "")}/api/shoplazza/cart-transform`;
+  await bindCartTransform(shop, accessToken, callbackUrl);
+  return created;
+}
+
+/**
  * Bind our Cart Transform function URL to the store so Shoplazza calls us
  * when the cart is used and we can return operations.update for the Item Protection line.
  * Exact request body may vary by Shoplazza API; we send function_url or url.

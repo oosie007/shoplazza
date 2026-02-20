@@ -366,18 +366,18 @@ export function ConfigurationContent() {
             </label>
           </section>
 
-          {/* How totals update: checkout package (primary) vs Cart API (fallback) */}
+          {/* Cart totals: we create the product automatically; merchants leave fields blank */}
           <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
             <h2 className="text-lg font-medium text-zinc-900">Cart totals integration</h2>
             <p className="mt-1 text-sm text-zinc-700">
-              <strong>Recommended (no setup for you):</strong> We register an &quot;Item Protection&quot; add-on with Shoplazza (checkout package). Once that’s active, your store will add our fee to the order and update the total when the customer toggles the widget—no product to create. If your total doesn’t update yet, we may still be completing registration with Shoplazza; contact us and we’ll confirm.
+              <strong>No setup required.</strong> We create an &quot;Item Protection&quot; product in your store automatically (on install or the first time a customer sees the widget). The widget adds or removes that line when the customer toggles, and the total updates. Leave the fields below blank—they are filled automatically.
             </p>
             <p className="mt-2 text-sm text-zinc-500">
-              <strong>Optional workaround:</strong> If the add-on isn’t available yet, you can add Item Protection as a normal cart line item by creating a product in your store (e.g. &quot;Item Protection&quot;) and entering its IDs below. The widget will add/remove that product when the toggle is used. Leave blank to rely on the add-on only.
+              If the IDs below are still empty after opening the app or loading checkout, our automatic creation may have failed (e.g. missing permission). You can then create a product named &quot;Item protection&quot; in your store and paste its product and variant IDs here as a fallback.
             </p>
             <div className="mt-3 space-y-2">
               <label className="block text-sm font-medium text-zinc-700">
-                Item Protection product ID (optional)
+                Item Protection product ID (leave blank unless fallback)
               </label>
               <input
                 type="text"
@@ -385,11 +385,11 @@ export function ConfigurationContent() {
                 onChange={(e) =>
                   updateSetting({ itemProtectionProductId: e.target.value })
                 }
-                placeholder="Leave blank to use add-on; or paste product ID"
+                placeholder="Filled automatically; or paste if using fallback"
                 className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
               <label className="block text-sm font-medium text-zinc-700">
-                Item Protection variant ID (optional)
+                Item Protection variant ID (leave blank unless fallback)
               </label>
               <input
                 type="text"
@@ -397,7 +397,7 @@ export function ConfigurationContent() {
                 onChange={(e) =>
                   updateSetting({ itemProtectionVariantId: e.target.value })
                 }
-                placeholder="Only needed if using product workaround"
+                placeholder="Filled automatically; or paste if using fallback"
                 className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
               />
             </div>

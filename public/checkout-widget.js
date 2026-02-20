@@ -286,7 +286,12 @@
   function applyPremiumViaCartAPI(enabled) {
     const productId = settings && settings.itemProtectionProductId;
     const variantId = settings && settings.itemProtectionVariantId;
-    if (!productId || !variantId) return;
+    if (!productId || !variantId) {
+      if (enabled && typeof console !== "undefined" && console.warn) {
+        console.warn("[CD Insure] Cart API skipped – no Item Protection product/variant ID in app settings. Reinstall the app so we can create the product and save IDs, or add them in the app admin under Cart totals integration.");
+      }
+      return;
+    }
     const base = (typeof window !== "undefined" && window.SHOPLAZZA && window.SHOPLAZZA.routes && window.SHOPLAZZA.routes.root)
       ? window.SHOPLAZZA.routes.root
       : getStoreOrigin();

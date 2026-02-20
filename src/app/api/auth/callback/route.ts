@@ -51,26 +51,10 @@ export async function GET(request: NextRequest) {
     try {
       const store = await getStoreByShop(shop);
       const settings = store?.settings as { itemProtectionProductId?: string | null } | undefined;
-      if (store && !settings?.itemProtectionProductId) {
-        const {
-          createItemProtectionProduct,
-          bindCartTransform,
-        } = await import("@/lib/shoplazza/item-protection-product");
+      if (store?.settings && !settings?.itemProtectionProductId) {
         const base = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin;
-        const callbackUrl = `${base.replace(/\/$/, "")}/api/shoplazza/cart-transform`;
-
-        const created = await createItemProtectionProduct(shop, access_token);
-        if (created && store.settings) {
-          const { prisma } = await import("@/lib/db");
-          await prisma.storeSettings.update({
-            where: { id: store.settings.id },
-            data: {
-              itemProtectionProductId: created.productId,
-              itemProtectionVariantId: created.variantId,
-            },
-          });
-          await bindCartTransform(shop, access_token, callbackUrl);
-        }
+        const { ensureItemProtectionProduct } = await import("@/lib/shoplazza/item-protection-product");
+        await ensureItemProtectionProduct(shop, access_token, store.settings.id, base);
       }
     } catch (setupErr) {
       console.error("[auth/callback] Item Protection setup failed (non-blocking):", setupErr);

@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
   }
   const shop = shopResult.data;
 
-  const store = await getStoreByShop(shop);
+  let store = await getStoreByShop(shop);
   const s = store?.settings as any;
   if (!s || !store) {
     return withCors(
@@ -31,27 +31,46 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  // If we don't have Item Protection product IDs yet, create the product and save them now
+  // (e.g. store installed before we added this, or install callback failed). No merchant action needed.
+  if (!s.itemProtectionProductId && store.accessToken && store.settings) {
+    try {
+      const base = process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin;
+      const { ensureItemProtectionProduct } = await import("@/lib/shoplazza/item-protection-product");
+      await ensureItemProtectionProduct(
+        shop,
+        store.accessToken,
+        store.settings.id,
+        base
+      );
+      store = await getStoreByShop(shop);
+    } catch (err) {
+      console.warn("[public-settings] ensureItemProtectionProduct failed:", err);
+    }
+  }
+
+  const settings = (store?.settings ?? s) as any;
   const categoryPercents =
-    typeof s.categoryPercents === "string" && s.categoryPercents.length
-      ? JSON.parse(s.categoryPercents)
+    typeof settings.categoryPercents === "string" && settings.categoryPercents.length
+      ? JSON.parse(settings.categoryPercents)
       : {};
   const excludedCategoryIds =
-    typeof s.excludedCategoryIds === "string" && s.excludedCategoryIds.length
-      ? JSON.parse(s.excludedCategoryIds)
+    typeof settings.excludedCategoryIds === "string" && settings.excludedCategoryIds.length
+      ? JSON.parse(settings.excludedCategoryIds)
       : [];
 
   return withCors(NextResponse.json({
-    activated: s.activated,
-    pricingMode: s.pricingMode,
-    fixedPercentAll: s.fixedPercentAll,
+    activated: settings.activated,
+    pricingMode: settings.pricingMode,
+    fixedPercentAll: settings.fixedPercentAll,
     categoryPercents,
     excludedCategoryIds,
-    widgetVariant: s.widgetVariant,
-    enablePoweredByChubb: s.enablePoweredByChubb,
-    offerAtCheckout: s.offerAtCheckout,
-    defaultAtCheckout: s.defaultAtCheckout,
-    itemProtectionProductId: s.itemProtectionProductId ?? undefined,
-    itemProtectionVariantId: s.itemProtectionVariantId ?? undefined,
+    widgetVariant: settings.widgetVariant,
+    enablePoweredByChubb: settings.enablePoweredByChubb,
+    offerAtCheckout: settings.offerAtCheckout,
+    defaultAtCheckout: settings.defaultAtCheckout,
+    itemProtectionProductId: settings.itemProtectionProductId ?? undefined,
+    itemProtectionVariantId: settings.itemProtectionVariantId ?? undefined,
   }));
 }
 
