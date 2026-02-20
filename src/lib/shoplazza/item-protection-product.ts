@@ -19,15 +19,27 @@ function normalizeShop(shop: string): string {
   return s.includes(".") ? s : `${s}.myshoplaza.com`;
 }
 
+export type CreateProductResult =
+  | { productId: string; variantId: string }
+  | { error: string };
+
 /**
  * Create a single product "Item protection" with one variant at price 0.
  * Requires write_product scope.
- * @returns { productId, variantId } or null if creation fails.
+ * @returns { productId, variantId } or { error: string } so callers can show the exact failure.
  */
 export async function createItemProtectionProduct(
   shop: string,
   accessToken: string
 ): Promise<{ productId: string; variantId: string } | null> {
+  const result = await createItemProtectionProductWithError(shop, accessToken);
+  return "error" in result ? null : result;
+}
+
+export async function createItemProtectionProductWithError(
+  shop: string,
+  accessToken: string
+): Promise<CreateProductResult> {
   const host = normalizeShop(shop);
   const url = `https://${host}/openapi/${OPENAPI_VERSION}/products`;
 
@@ -61,17 +73,18 @@ export async function createItemProtectionProduct(
       body: JSON.stringify(body),
     });
 
+    const text = await res.text();
     if (!res.ok) {
-      const text = await res.text();
       console.error("[item-protection-product] Create product failed:", res.status, text);
-      return null;
+      return { error: `Create product failed: ${res.status} ${text}` };
     }
 
-    const data = (await res.json()) as {
-      product?: { id?: string; variants?: Array<{ id?: string }> };
-      id?: string;
-      variants?: Array<{ id?: string }>;
-    };
+    let data: { product?: { id?: string; variants?: Array<{ id?: string }> }; id?: string; variants?: Array<{ id?: string }> };
+    try {
+      data = JSON.parse(text) as typeof data;
+    } catch {
+      return { error: `Invalid JSON response: ${text.slice(0, 200)}` };
+    }
     const product = data.product ?? data;
     const productId = product.id != null ? String(product.id) : null;
     const variants = product.variants ?? [];
@@ -79,13 +92,14 @@ export async function createItemProtectionProduct(
 
     if (!productId || !variantId) {
       console.error("[item-protection-product] Create product response missing id/variant:", data);
-      return null;
+      return { error: `Response missing id/variant: ${JSON.stringify(data).slice(0, 300)}` };
     }
 
     return { productId, variantId };
   } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
     console.error("[item-protection-product] Create product error:", err);
-    return null;
+    return { error: msg };
   }
 }
 
@@ -101,8 +115,29 @@ export async function ensureItemProtectionProduct(
   storeSettingsId: string,
   callbackBaseUrl: string
 ): Promise<{ productId: string; variantId: string } | null> {
-  const created = await createItemProtectionProduct(shop, accessToken);
-  if (!created) return null;
+  const result = await ensureItemProtectionProductWithError(
+    shop,
+    accessToken,
+    storeSettingsId,
+    callbackBaseUrl
+  );
+  return "error" in result ? null : result;
+}
+
+/**
+ * Same as ensureItemProtectionProduct but returns { error: string } on failure so callers can display it.
+ */
+export async function ensureItemProtectionProductWithError(
+  shop: string,
+  accessToken: string,
+  storeSettingsId: string,
+  callbackBaseUrl: string
+): Promise<
+  | { productId: string; variantId: string }
+  | { error: string }
+> {
+  const created = await createItemProtectionProductWithError(shop, accessToken);
+  if ("error" in created) return created;
   const { prisma } = await import("@/lib/db");
   await prisma.storeSettings.update({
     where: { id: storeSettingsId },
@@ -112,7 +147,10 @@ export async function ensureItemProtectionProduct(
     },
   });
   const callbackUrl = `${callbackBaseUrl.replace(/\/$/, "")}/api/shoplazza/cart-transform`;
-  await bindCartTransform(shop, accessToken, callbackUrl);
+  const bound = await bindCartTransform(shop, accessToken, callbackUrl);
+  if (!bound) {
+    console.warn("[item-protection-product] Cart Transform bind failed; product was created and IDs saved.");
+  }
   return created;
 }
 

@@ -43,6 +43,8 @@ export function ConfigurationContent() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [categoriesFromApi, setCategoriesFromApi] = useState(false);
   const [categoriesError, setCategoriesError] = useState<string | null>(null);
+  const [ensureLoading, setEnsureLoading] = useState(false);
+  const [ensureMessage, setEnsureMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   useEffect(() => {
     setShop(getShopFromQuery());
@@ -376,6 +378,64 @@ export function ConfigurationContent() {
               If the IDs below are still empty after opening the app or loading checkout, our automatic creation may have failed (e.g. missing permission). You can then create a product named &quot;Item protection&quot; in your store and paste its product and variant IDs here as a fallback.
             </p>
             <div className="mt-3 space-y-2">
+              {ensureMessage && (
+                <div
+                  className={
+                    "rounded-md border px-3 py-2 text-sm " +
+                    (ensureMessage.type === "success"
+                      ? "border-green-200 bg-green-50 text-green-800"
+                      : "border-red-200 bg-red-50 text-red-800")
+                  }
+                >
+                  {ensureMessage.text}
+                </div>
+              )}
+              <button
+                type="button"
+                disabled={!shop || ensureLoading}
+                onClick={async () => {
+                  if (!shop) return;
+                  setEnsureMessage(null);
+                  setEnsureLoading(true);
+                  try {
+                    const res = await fetch(
+                      `${APP_URL}/api/admin/ensure-item-protection?shop=${encodeURIComponent(shop)}`,
+                      { method: "POST" }
+                    );
+                    const data = (await res.json()) as { ok: boolean; error?: string; productId?: string; variantId?: string };
+                    if (data.ok) {
+                      setEnsureMessage({
+                        type: "success",
+                        text: `Product created. Product ID: ${data.productId}, Variant ID: ${data.variantId}. Reloading settings…`,
+                      });
+                      const settingsRes = await fetch(`${APP_URL}/api/settings?shop=${encodeURIComponent(shop)}`);
+                      if (settingsRes.ok) {
+                        const next = await settingsRes.json();
+                        setSettings(next ?? settings);
+                        setEnsureMessage({
+                          type: "success",
+                          text: "Item Protection product created. The checkout toggle will now add/remove the line and update the total.",
+                        });
+                      }
+                    } else {
+                      setEnsureMessage({
+                        type: "error",
+                        text: data.error ?? "Unknown error",
+                      });
+                    }
+                  } catch (e) {
+                    setEnsureMessage({
+                      type: "error",
+                      text: e instanceof Error ? e.message : String(e),
+                    });
+                  } finally {
+                    setEnsureLoading(false);
+                  }
+                }}
+                className="rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-700 shadow-sm hover:bg-zinc-50 disabled:opacity-50"
+              >
+                {ensureLoading ? "Creating…" : "Create Item Protection product now"}
+              </button>
               <label className="block text-sm font-medium text-zinc-700">
                 Item Protection product ID (leave blank unless fallback)
               </label>
