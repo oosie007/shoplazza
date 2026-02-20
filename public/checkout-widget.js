@@ -301,11 +301,58 @@
       .catch(function () { return doPriceRequest(); });
   }
 
+  function clearHints(root) {
+    try {
+      if (!root) root = document.querySelector("#cd-insure-widget-root");
+      if (root) {
+        var s = root.querySelector(".ip-cart-skipped-hint");
+        if (s) s.remove();
+        var f = root.querySelector(".ip-cart-failed-hint");
+        if (f) f.remove();
+      }
+    } catch (e) {}
+  }
+
+  /** Show when Cart API was skipped (no product/variant ID) so merchant knows to configure the app. */
+  function showCartApiSkippedHint() {
+    try {
+      var root = typeof document !== "undefined" && document.querySelector("#cd-insure-widget-root");
+      if (!root) return;
+      var existing = root.querySelector(".ip-cart-skipped-hint");
+      if (existing) existing.remove();
+      var wrap = root.querySelector(".ip-wrap");
+      if (!wrap) return;
+      var div = document.createElement("div");
+      div.className = "ip-cart-skipped-hint";
+      div.style.cssText = "margin-top:8px;font-family:'Lato',sans-serif;font-size:12px;line-height:16px;color:#b45309;background:#fef3c7;padding:8px;border-radius:4px;";
+      div.textContent = "Item protection could not be added as a line item. Configure the Item Protection product in the app admin (Configuration) so it can be added to the cart.";
+      wrap.appendChild(div);
+    } catch (e) {}
+  }
+
+  /** Show when Cart API add returned an error (e.g. 403, 404). */
+  function showCartApiFailedHint(status) {
+    try {
+      var root = typeof document !== "undefined" && document.querySelector("#cd-insure-widget-root");
+      if (!root) return;
+      var existing = root.querySelector(".ip-cart-failed-hint");
+      if (existing) existing.remove();
+      var wrap = root.querySelector(".ip-wrap");
+      if (!wrap) return;
+      var div = document.createElement("div");
+      div.className = "ip-cart-failed-hint";
+      div.style.cssText = "margin-top:8px;font-family:'Lato',sans-serif;font-size:12px;line-height:16px;color:#b91c1c;background:#fee2e2;padding:8px;border-radius:4px;";
+      div.textContent = "Could not add item protection to the cart (error " + status + "). Check the app is installed and the Item Protection product exists for this store.";
+      wrap.appendChild(div);
+    } catch (e) {}
+  }
+
   /** Show a short message + "Refresh page" link so the customer can see the updated total. No automatic reload. */
   function showRefreshHint(kind) {
     try {
       var root = typeof document !== "undefined" && document.querySelector("#cd-insure-widget-root");
       if (!root) return;
+      clearHints(root);
       var existing = root.querySelector(".ip-refresh-hint");
       if (existing) existing.remove();
       var wrap = root.querySelector(".ip-wrap");
@@ -454,8 +501,11 @@
     const productId = settings && settings.itemProtectionProductId;
     const variantId = settings && settings.itemProtectionVariantId;
     if (!productId || !variantId) {
-      if (enabled && typeof console !== "undefined" && console.warn) {
-        console.warn("[CD Insure] Cart API skipped – no Item Protection product/variant ID in app settings. Reinstall the app so we can create the product and save IDs, or add them in the app admin under Cart totals integration.");
+      if (enabled) {
+        if (typeof console !== "undefined" && console.warn) {
+          console.warn("[CD Insure] Cart API skipped – no Item Protection product/variant ID. Add them in app admin (Configuration → create Item Protection product) so the line can be added to the cart.");
+        }
+        showCartApiSkippedHint();
       }
       return;
     }
@@ -501,6 +551,7 @@
                 console.warn("[CD Insure] Cart POST " + res.status + " response:", body.slice(0, 300));
               }).catch(function () {});
             }
+            showCartApiFailedHint(res ? res.status : 0);
           }
         })
         .catch(function (err) {
@@ -544,6 +595,7 @@
       .then(function (res) {
         if (res && res.ok) {
           debugLog("Cart API: removed Item Protection line");
+          clearHints();
           refreshCheckoutPriceAfterCartChange();
           showRefreshHint("removed");
         }
@@ -686,6 +738,7 @@
     if (btn && !isDisabled) {
       btn.addEventListener("click", () => {
         toggleOn = !toggleOn;
+        clearHints();
         applyPremium(toggleOn);
         // Update only toggle state in DOM to avoid re-injecting styles (prevents font flicker)
         btn.classList.toggle("on", toggleOn);
