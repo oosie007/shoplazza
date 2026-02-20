@@ -12,7 +12,8 @@
     "zip:extension": "cd checkout-extension && npm run zip",
     "dev:extension": "shoplazza checkout dev --id cd-insure-item-protection",
     "inject:extension-url": "node scripts/inject-extension-app-url.js",
-    "deploy:extension": "npm run inject:extension-url && npm run build:extension && shoplazza checkout deploy"
+    "deploy:extension": "npm run inject:extension-url && npm run build:extension && shoplazza checkout deploy",
+    "build:cart-transform-wasm": "node scripts/build-cart-transform-wasm.mjs"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.4.0",

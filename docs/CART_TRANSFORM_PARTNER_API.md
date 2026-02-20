@@ -29,7 +29,7 @@ Use the same app **Client ID** and **Client Secret** from Partner Center (the on
   - `file` = WASM binary (the reference compiles JS to WASM with Javy and uploads this)
   - `source_code` = JavaScript source string (reference sends both)
 
-The reference builds a **WASM** from JavaScript (Javy) and sends it as `file`. If the API accepts `source_code` only, we can skip WASM for a first version.
+The reference builds a **WASM** from JavaScript (Javy) and sends it as `file`. The Partner API **requires** the `file` field; sending only `source_code` returns 400 "Field with name 'file' is required". We build WASM with Javy and send it (see below).
 
 ## Bind (Store API) – unchanged
 
@@ -44,6 +44,7 @@ The reference builds a **WASM** from JavaScript (Javy) and sends it as `file`. I
 
 ## What we changed in our app
 
-- We now obtain a **partner token** (client_credentials) and call **Partner API** `POST /functions` with multipart (`namespace`, `name`, `source_code`; optionally `file` when we have WASM).
+- We obtain a **partner token** (client_credentials) and call **Partner API** `POST /functions` with multipart: `namespace`, `name`, `source_code`, and **`file`** (WASM binary). The API requires `file`; without it you get 400 "Field with name 'file' is required".
+- We build the WASM from `scripts/cart-transform-function.js` using Javy: run **`npm run build:cart-transform-wasm`** to produce `public/cart-transform.wasm`. Deploy or run the app with that file present; if it is missing, bind/create returns a clear error telling you to run the build.
 - We then **bind** with the store token to `https://{shop}/openapi/2024-07/function/cart-transform` with `function_id`.
 - **Shoplazza-REFERENCE** remains excluded from git via `.gitignore` (`/Shoplazza-REFERENCE`).

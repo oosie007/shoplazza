@@ -1,3 +1,6 @@
+import fs from "fs";
+import path from "path";
+
 /**
  * Create "Item Protection" product in the merchant store via Shoplazza OpenAPI
  * and register a Cart Transform function (per Shoplazza docs: Create Function with
@@ -296,7 +299,7 @@ const cartTransformHeaders = (accessToken: string) => ({
 /**
  * Create function via Partner API (how Shoplazza-REFERENCE does it).
  * POST https://partners.shoplazza.com/openapi/2024-07/functions with multipart/form-data:
- * namespace=cart_transform, name=..., source_code=...
+ * namespace=cart_transform, name=..., source_code=..., file=(WASM binary).
  * Auth: partner token + app-client-id. Returns function id.
  * @see docs/CART_TRANSFORM_PARTNER_API.md
  */
@@ -317,11 +320,20 @@ async function createFunctionViaPartnerAPI(
     console.warn("[item-protection-product] SHOPLAZZA_CLIENT_ID missing for Partner API");
     return null;
   }
+  const wasmPath = path.join(process.cwd(), "public", "cart-transform.wasm");
+  if (!fs.existsSync(wasmPath)) {
+    const msg =
+      "WASM file required for Cart Transform. Run: npm run build:cart-transform-wasm (ensures public/cart-transform.wasm exists).";
+    console.warn("[item-protection-product]", msg);
+    return { ok: false, status: 400, body: msg };
+  }
+  const wasmBuffer = fs.readFileSync(wasmPath);
   const url = `${PARTNER_API_BASE}/functions`;
   const form = new FormData();
   form.append("namespace", "cart_transform");
   form.append("name", name);
   form.append("source_code", sourceCode);
+  form.append("file", new Blob([wasmBuffer]), "cart-transform.wasm");
 
   const res = await fetch(url, {
     method: "POST",
