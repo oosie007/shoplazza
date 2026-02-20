@@ -301,11 +301,99 @@
       .catch(function () { return doPriceRequest(); });
   }
 
+  /** Show a short message + "Refresh page" link so the customer can see the updated total. No automatic reload. */
+  function showRefreshHint(kind) {
+    try {
+      var root = typeof document !== "undefined" && document.querySelector("#cd-insure-widget-root");
+      if (!root) return;
+      var existing = root.querySelector(".ip-refresh-hint");
+      if (existing) existing.remove();
+      var wrap = root.querySelector(".ip-wrap");
+      if (!wrap) return;
+      var msg = kind === "added"
+        ? "Item protection added. Refresh the page to see the updated total."
+        : "Item protection removed. Refresh the page to see the updated total.";
+      var div = document.createElement("div");
+      div.className = "ip-refresh-hint";
+      div.style.cssText = "margin-top:8px;font-family:'Lato',sans-serif;font-size:12px;line-height:16px;color:#6F7175;";
+      div.innerHTML = msg.replace("Refresh the page", "<a href=\"#\" style=\"color:#007AB3;text-decoration:underline;\">Refresh the page</a>");
+      var link = div.querySelector("a");
+      if (link) {
+        link.addEventListener("click", function (e) { e.preventDefault(); if (typeof location !== "undefined" && location.reload) location.reload(); });
+      }
+      wrap.appendChild(div);
+    } catch (e) {}
+  }
+
   /**
-   * After Cart API add/remove, refetch price from store and call onPricesChange(data).
-   * Shoplazza's checkout may not re-render the displayed Total from onPricesChange
-   * (UI can stay at $200 while API returns total_price 210). Workaround: turn on Item
-   * Protection on the cart page before going to checkout, or refresh the checkout page after toggling.
+   * Build a CheckoutPrices-shaped object from price API response so the checkout UI can re-render (like Worry Free).
+   */
+  function toCheckoutPrices(prices, items) {
+    var p = prices || {};
+    var str = function (v) { return v != null ? String(v) : "0"; };
+    return {
+      subtotalPrice: str(p.subtotal_price || p.subtotalPrice),
+      totalPrice: str(p.total_price || p.total || p.totalPrice),
+      shippingPrice: str(p.shipping_price || p.shippingPrice),
+      taxPrice: str(p.tax_price || p.taxPrice),
+      discountCodePrice: str(p.discount_code_price || p.discountCodePrice),
+      discountPrice: str(p.discount_price || p.discountPrice),
+      discountLineItemPrice: str(p.discount_line_item_price || p.discountLineItemPrice),
+      paymentDue: str(p.payment_due != null ? p.payment_due : (p.total_price || p.total || p.totalPrice)),
+      paidTotal: str(p.paid_total || p.paidTotal),
+      giftCardPrice: str(p.gift_card_price || p.giftCardPrice),
+      totalTipReceived: str(p.total_tip_received || p.totalTipReceived),
+      discountShippingPrice: str(p.discount_shipping_price || p.discountShippingPrice),
+      additionalPrices: Array.isArray(p.additionalPrices) ? p.additionalPrices : (Array.isArray(p.additional_prices) ? p.additional_prices : []),
+      line_items: Array.isArray(items) ? items : [],
+    };
+  }
+
+  /**
+   * After we get new prices (like after Worry Free's pkg_set + price), try every plausible way the
+   * checkout might refresh the order summary so only the cart updates, not the full page.
+   */
+  function triggerCheckoutRefresh(checkoutPrices) {
+    try {
+      if (typeof window === "undefined" || !window.dispatchEvent) return;
+      var detail = { prices: checkoutPrices };
+      var events = [
+        "shoplazza:cart:updated",
+        "shoplazza:price:updated",
+        "checkout:price:updated",
+        "priceUpdated",
+        "pricesChange",
+      ];
+      for (var i = 0; i < events.length; i++) {
+        try {
+          window.dispatchEvent(new CustomEvent(events[i], { detail: detail }));
+        } catch (e) {}
+      }
+      if (hasCheckoutAPI && CheckoutAPI.store) {
+        var store = CheckoutAPI.store;
+        var fns = ["refresh", "refreshPrices", "updatePrices", "setPrices", "reloadSummary", "refreshCart"];
+        for (var j = 0; j < fns.length; j++) {
+          if (typeof store[fns[j]] === "function") {
+            try {
+              store[fns[j]](checkoutPrices);
+            } catch (e) {}
+          }
+        }
+      }
+      var globals = ["__checkoutUpdatePrices", "__CHECKOUT_REFRESH", "ShoplazzaCheckoutRefresh", "checkoutPriceUpdated"];
+      for (var k = 0; k < globals.length; k++) {
+        var g = typeof window !== "undefined" && window[globals[k]];
+        if (typeof g === "function") {
+          try {
+            g(checkoutPrices);
+          } catch (e) {}
+        }
+      }
+    } catch (e) {}
+  }
+
+  /**
+   * After Cart API add/remove, refetch price and notify checkout so the order summary can refresh (cart-only, like Worry Free).
    */
   function refreshCheckoutPriceAfterCartChange() {
     var orderToken = getOrderToken();
@@ -323,7 +411,7 @@
         if (typeof console !== "undefined" && console.log) {
           console.log("[CD Insure] Price refetch status " + (res ? res.status : "none"));
         }
-        if (res && res.ok && hasCheckoutAPI && CheckoutAPI.store && typeof CheckoutAPI.store.onPricesChange === "function") {
+        if (res && res.ok && hasCheckoutAPI && CheckoutAPI.store) {
           res.json().then(function (pricesFromServer) {
             try {
               if (!pricesFromServer) return;
@@ -333,14 +421,14 @@
               var total = prices.total_price != null ? prices.total_price : prices.total;
               var count = Array.isArray(items) ? items.length : 0;
               if (typeof console !== "undefined" && console.log) {
-                console.log("[CD Insure] Price response total=" + total + " line_items=" + count + ", calling onPricesChange");
+                console.log("[CD Insure] Price response total=" + total + " line_items=" + count + ", notifying checkout");
               }
-              if (data.prices && data.line_items) {
-                CheckoutAPI.store.onPricesChange(data);
-              } else {
-                var flat = Object.assign({}, prices, { line_items: items });
-                CheckoutAPI.store.onPricesChange(flat);
+              var checkoutPrices = toCheckoutPrices(prices, items);
+              if (typeof CheckoutAPI.store.onPricesChange === "function") {
+                CheckoutAPI.store.onPricesChange(checkoutPrices);
               }
+              // Trigger the same kind of refresh Worry Free gets after pkg_set + price (no console, just cart update).
+              triggerCheckoutRefresh(checkoutPrices);
             } catch (e) {
               if (typeof console !== "undefined" && console.warn) console.warn("[CD Insure] onPricesChange error", e);
             }
@@ -404,23 +492,8 @@
               console.log("[CD Insure] Item Protection line added (200). Refetching price so Cart Transform total appears.");
             }
             refreshCheckoutPriceAfterCartChange();
-            setTimeout(function () {
-              refreshCheckoutPriceAfterCartChange();
-              setTimeout(function () {
-                if (typeof console !== "undefined" && console.log) {
-                  console.log("[CD Insure] Reloading page to show updated total ($210).");
-                }
-                try {
-                  if (typeof window !== "undefined" && window.top && window.top.location) {
-                    window.top.location.reload();
-                  } else if (typeof location !== "undefined" && location.reload) {
-                    location.reload();
-                  }
-                } catch (e) {
-                  if (typeof location !== "undefined" && location.reload) location.reload();
-                }
-              }, 800);
-            }, 1200);
+            setTimeout(function () { refreshCheckoutPriceAfterCartChange(); }, 1200);
+            showRefreshHint("added");
           } else {
             debugLog("Cart API add failed " + (res ? res.status : "no res"), true);
             if (res && typeof console !== "undefined" && console.warn) {
@@ -472,20 +545,7 @@
         if (res && res.ok) {
           debugLog("Cart API: removed Item Protection line");
           refreshCheckoutPriceAfterCartChange();
-          setTimeout(function () {
-            if (typeof console !== "undefined" && console.log) {
-              console.log("[CD Insure] Reloading page to show updated total (protection removed).");
-            }
-            try {
-              if (typeof window !== "undefined" && window.top && window.top.location) {
-                window.top.location.reload();
-              } else if (typeof location !== "undefined" && location.reload) {
-                location.reload();
-              }
-            } catch (e) {
-              if (typeof location !== "undefined" && location.reload) location.reload();
-            }
-          }, 600);
+          showRefreshHint("removed");
         }
       })
       .catch(function (err) {
