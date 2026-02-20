@@ -58,7 +58,7 @@ export async function createItemProtectionProductWithError(
     variants: [
       {
         option1: "Default",
-        price: "0",
+        price: 0,
         position: 1,
         sku: "ITEM-PROTECTION",
       },
