@@ -85,8 +85,24 @@
     const lookup = productIdToCategory || {};
 
     if (mode === "fixed_percent_all") {
-      const total = parseFloat(prices.totalPrice || prices.subtotalPrice || "0");
-      return +(total * (defaultPercent / 100)).toFixed(2);
+      let total = parseFloat(
+        prices.totalPrice || prices.subtotalPrice ||
+        prices.total_price || prices.subtotal_price ||
+        prices.originalTotalPrice || prices.original_total_price ||
+        "0"
+      );
+      if (total <= 0 && products && products.length) {
+        for (const p of products) {
+          const linePrice = parseFloat(p.finalLinePrice || p.linePrice || p.price || "0") || 0;
+          const qty = parseInt(p.quantity || "1", 10) || 1;
+          total += linePrice * qty;
+        }
+      }
+      const premium = +(total * (defaultPercent / 100)).toFixed(2);
+      if (total > 0 && premium === 0 && defaultPercent > 0) {
+        return 0.01;
+      }
+      return premium;
     }
 
     // per_category: use % per product category; fallback to defaultPercent if category unknown or not set
@@ -443,10 +459,11 @@
   function renderWidget(container) {
     if (!settings) return;
     const state = toggleOn ? "on" : "off";
-    const priceStr = premiumAmount.toFixed(2);
+    const priceStr = premiumAmount > 0 ? premiumAmount.toFixed(2) : "—";
     const showLogo = settings.enablePoweredByChubb !== false;
     const currencySymbol = getCurrencySymbol();
-    const isDisabled = premiumAmount <= 0;
+    const hasPercent = (settings.fixedPercentAll || 0) > 0;
+    const isDisabled = premiumAmount <= 0 && !hasPercent;
 
     container.innerHTML = `
       <style>
