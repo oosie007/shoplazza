@@ -300,7 +300,10 @@
     if (enabled) {
       fetch(cartUrl, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+        },
         body: JSON.stringify({
           product_id: productId,
           variant_id: variantId,
@@ -320,6 +323,11 @@
             }
           } else {
             debugLog("Cart API add failed " + (res ? res.status : "no res"), true);
+            if (res && res.status === 406 && typeof console !== "undefined" && console.warn) {
+              res.text().then(function (body) {
+                console.warn("[CD Insure] Cart POST 406 response:", body.slice(0, 200));
+              }).catch(function () {});
+            }
           }
         })
         .catch(function (err) {
@@ -329,7 +337,11 @@
     }
 
     // Remove: get cart, find our product line, then DELETE
-    fetch(cartUrl, { method: "GET", headers: { "Content-Type": "application/json" }, credentials: "same-origin" })
+    fetch(cartUrl, {
+      method: "GET",
+      headers: { "Content-Type": "application/json", "Accept": "application/json" },
+      credentials: "same-origin",
+    })
       .then(function (res) { return res.ok ? res.json() : null; })
       .then(function (data) {
         var cart = data && data.cart;
