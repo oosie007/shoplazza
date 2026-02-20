@@ -18,7 +18,7 @@ const CART_TRANSFORM_OPENAPI_VERSION = "2024-07";
  * Javy-compatible JavaScript for Cart Transform. Reads cart JSON from stdin,
  * finds the "Item protection" line (by product title), gets percent from
  * product metafield cd_insure.percent or default 20, computes premium and
- * writes operations JSON to stdout. No external calls; ECMAScript 2020 sync only.
+ * writes output per Function Output Protocol: { operation: { update: [...] } }.
  * @see https://www.shoplazza.dev/v2024.07/reference/function-execution-logic
  */
 const CART_TRANSFORM_FUNCTION_CODE = `
@@ -72,11 +72,11 @@ for (var i = 0; i < lineItems.length; i++) {
     subtotalOther += price * qty;
   }
 }
-var result = { operations: { update: [] } };
+var result = { operation: { update: [] } };
 if (protectionLineId) {
   var premium = Math.round(subtotalOther * percent / 100 * 100) / 100;
   premium = Math.max(0, Math.min(999999999, premium));
-  result.operations.update.push({
+  result.operation.update.push({
     id: protectionLineId,
     price: { adjustment_fixed_price: premium.toFixed(2) }
   });
@@ -412,8 +412,8 @@ async function createFunctionWithCode(
 
 /**
  * Bind Cart Transform with a function id. POST .../openapi/2024-07/function/cart-transform
- * Body format per official docs: https://www.shoplazza.dev/v2024.07/reference/bind-cart-transform-function
- * (Use "Try It" there to confirm; we send function_id as in the Bind Cart Transform Function spec.)
+ * Body per https://www.shoplazza.dev/v2024.07/reference/function-execution-logic:
+ * function_id, block_on_failure (optional), input_query (optional for metafields).
  */
 async function bindCartTransformByFunctionId(
   host: string,
@@ -421,14 +421,17 @@ async function bindCartTransformByFunctionId(
   functionId: string
 ): Promise<{ ok: true } | { ok: false; status: number; body: string }> {
   const url = `https://${host}/openapi/${CART_TRANSFORM_OPENAPI_VERSION}/function/cart-transform`;
-  const function_id = String(functionId);
+  const body = {
+    function_id: String(functionId),
+    block_on_failure: false,
+  };
   const res = await fetch(url, {
     method: "POST",
     headers: {
       ...cartTransformHeaders(accessToken),
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ function_id }),
+    body: JSON.stringify(body),
   });
   const text = await res.text();
   if (!res.ok) {

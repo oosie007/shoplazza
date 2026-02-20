@@ -53,11 +53,11 @@ for (var i = 0; i < lineItems.length; i++) {
     subtotalOther += price * qty;
   }
 }
-var result = { operations: { update: [] } };
+var result = { operation: { update: [] } };
 if (protectionLineId) {
   var premium = Math.round(subtotalOther * percent / 100 * 100) / 100;
   premium = Math.max(0, Math.min(999999999, premium));
-  result.operations.update.push({
+  result.operation.update.push({
     id: protectionLineId,
     price: { adjustment_fixed_price: premium.toFixed(2) }
   });

@@ -357,7 +357,7 @@
       var wrap = root.querySelector(".ip-wrap");
       if (!wrap) return;
       var msg = kind === "added"
-        ? "Item protection added. Refresh the page to see the updated total."
+        ? "Item protection added. Refresh the page to see the updated total. If the line still does not appear, add it from the cart page before going to checkout."
         : "Item protection removed. Refresh the page to see the updated total.";
       var div = document.createElement("div");
       div.className = "ip-refresh-hint";
@@ -538,20 +538,11 @@
           if (res && res.ok) {
             debugLog("Cart API: added Item Protection line");
             if (typeof console !== "undefined" && console.log) {
-              console.log("[CD Insure] Item Protection line added (200). Refetching price, then reloading so cart shows the new line and total.");
+              console.log("[CD Insure] Item Protection line added (200). Refetching price. Use the link below to refresh the page if the total does not update.");
             }
             refreshCheckoutPriceAfterCartChange();
-            setTimeout(function () {
-              refreshCheckoutPriceAfterCartChange();
-              showRefreshHint("added");
-              setTimeout(function () {
-                try {
-                  if (typeof location !== "undefined" && location.reload) {
-                    location.reload();
-                  }
-                } catch (e) {}
-              }, 800);
-            }, 1200);
+            setTimeout(function () { refreshCheckoutPriceAfterCartChange(); }, 1200);
+            showRefreshHint("added");
           } else {
             debugLog("Cart API add failed " + (res ? res.status : "no res"), true);
             if (res && typeof console !== "undefined" && console.warn) {
