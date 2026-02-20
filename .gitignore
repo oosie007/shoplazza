@@ -58,5 +58,6 @@ next-env.d.ts
 # Shoplazza CLI build output (when run from root)
 /dist
 
-# reference/demo only – not part of our app
+# Reference implementation only – do not commit (contains partner flow, WASM, etc.)
 /Shoplazza-REFERENCE
+Shoplazza-REFERENCE/

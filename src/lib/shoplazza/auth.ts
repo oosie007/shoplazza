@@ -128,3 +128,34 @@ export function getRedirectUri(): string {
   const base = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
   return `${base.replace(/\/$/, "")}/api/auth/callback`;
 }
+
+const PARTNER_TOKEN_URL = "https://partners.shoplazza.com/partner/oauth/token";
+
+/**
+ * Get a partner-level access token for Partner API (e.g. Create Function).
+ * Uses client_credentials grant with app Client ID and Secret.
+ * @see Shoplazza-REFERENCE: ShoplazzaAuthService.GetPartnerTokenAsync
+ */
+export async function getPartnerToken(): Promise<string> {
+  if (!clientId || !clientSecret) {
+    throw new Error("SHOPLAZZA_CLIENT_ID or SHOPLAZZA_CLIENT_SECRET is missing");
+  }
+  const res = await fetch(PARTNER_TOKEN_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      client_id: clientId,
+      client_secret: clientSecret,
+      grant_type: "client_credentials",
+    }),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Partner token failed: ${res.status} ${text}`);
+  }
+  const data = (await res.json()) as { access_token?: string };
+  if (!data.access_token) {
+    throw new Error("Partner token response missing access_token");
+  }
+  return data.access_token;
+}

@@ -284,6 +284,8 @@ export async function ensureItemProtectionProductWithError(
 
 export type BindCartTransformResult = { ok: true } | { ok: false; status: number; body: string } | { ok: false; error: string };
 
+const PARTNER_API_BASE = "https://partners.shoplazza.com/openapi/2024-07";
+
 const cartTransformHeaders = (accessToken: string) => ({
   "Content-Type": "application/json",
   Accept: "application/json",
@@ -292,7 +294,64 @@ const cartTransformHeaders = (accessToken: string) => ({
 });
 
 /**
- * Create Function (Function API). POST .../openapi/2024-07/function
+ * Create function via Partner API (how Shoplazza-REFERENCE does it).
+ * POST https://partners.shoplazza.com/openapi/2024-07/functions with multipart/form-data:
+ * namespace=cart_transform, name=..., source_code=...
+ * Auth: partner token + app-client-id. Returns function id.
+ * @see docs/CART_TRANSFORM_PARTNER_API.md
+ */
+async function createFunctionViaPartnerAPI(
+  name: string,
+  sourceCode: string
+): Promise<{ ok: true; id: string } | { ok: false; status: number; body: string } | null> {
+  let partnerToken: string;
+  try {
+    const { getPartnerToken } = await import("@/lib/shoplazza/auth");
+    partnerToken = await getPartnerToken();
+  } catch (e) {
+    console.warn("[item-protection-product] Partner token failed (skip Partner API create):", e instanceof Error ? e.message : e);
+    return null;
+  }
+  const clientId = process.env.SHOPLAZZA_CLIENT_ID;
+  if (!clientId) {
+    console.warn("[item-protection-product] SHOPLAZZA_CLIENT_ID missing for Partner API");
+    return null;
+  }
+  const url = `${PARTNER_API_BASE}/functions`;
+  const form = new FormData();
+  form.append("namespace", "cart_transform");
+  form.append("name", name);
+  form.append("source_code", sourceCode);
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Access-Token": partnerToken,
+      "app-client-id": clientId,
+    },
+    body: form,
+  });
+  const text = await res.text();
+  if (!res.ok) {
+    console.warn("[item-protection-product] Partner API Create function failed:", res.status, "body:", text?.slice(0, 400));
+    return { ok: false, status: res.status, body: text };
+  }
+  try {
+    const data = text ? JSON.parse(text) : {};
+    const id = data?.id ?? data?.data?.id ?? data?.function_id ?? data?.data?.function_id;
+    if (id != null && typeof id === "string") {
+      console.info("[item-protection-product] Partner API Create function succeeded, id:", id);
+      return { ok: true, id };
+    }
+    console.warn("[item-protection-product] Partner API response missing function id:", text?.slice(0, 200));
+    return { ok: false, status: 500, body: text || "Response missing function id" };
+  } catch {
+    return { ok: false, status: 500, body: text };
+  }
+}
+
+/**
+ * Create Function (Store API – often 404). POST .../openapi/2024-07/function
  * Body: { name, code, runtime }. Returns function id from response.
  * @see https://www.shoplazza.dev/v2024.07/reference/create-function
  */
@@ -365,22 +424,38 @@ async function bindCartTransformByFunctionId(
 
 /**
  * Create the Item Protection cart-transform function (upload code) and bind it.
- * This is the flow from the docs: Create Function → Bind Cart Transform with function_id.
+ * Tries Partner API first (Create at partners.shoplazza.com, then Bind at store), then store API create.
+ * @see docs/CART_TRANSFORM_PARTNER_API.md and Shoplazza-REFERENCE
  */
 export async function createAndBindCartTransformFunction(
   shop: string,
   accessToken: string
 ): Promise<BindCartTransformResult> {
   const host = normalizeShop(shop);
-  const created = await createFunctionWithCode(host, accessToken, {
-    name: "item-protection-cart-transform",
-    code: CART_TRANSFORM_FUNCTION_CODE,
-    runtime: "javascript",
-  });
-  if (!created.ok) {
-    return { ok: false, status: created.status, body: created.body };
+  const name = "item-protection-cart-transform";
+
+  let functionId: string | null = null;
+
+  const partnerResult = await createFunctionViaPartnerAPI(name, CART_TRANSFORM_FUNCTION_CODE);
+  if (partnerResult?.ok === true) {
+    functionId = partnerResult.id;
+  } else if (partnerResult && !partnerResult.ok) {
+    return { ok: false, status: partnerResult.status, body: partnerResult.body };
   }
-  const bindResult = await bindCartTransformByFunctionId(host, accessToken, created.id);
+
+  if (!functionId) {
+    const created = await createFunctionWithCode(host, accessToken, {
+      name,
+      code: CART_TRANSFORM_FUNCTION_CODE,
+      runtime: "javascript",
+    });
+    if (!created.ok) {
+      return { ok: false, status: created.status, body: created.body };
+    }
+    functionId = created.id;
+  }
+
+  const bindResult = await bindCartTransformByFunctionId(host, accessToken, functionId);
   if (!bindResult.ok) {
     return { ok: false, status: bindResult.status, body: bindResult.body };
   }
