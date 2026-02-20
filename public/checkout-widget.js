@@ -49,6 +49,7 @@
   let settings = null;
   let premiumAmount = 0;
   let toggleOn = false;
+  var pkgSet404Warned = false;
 
   function fetchSettings() {
     if (!APP_BASE_URL) {
@@ -291,8 +292,9 @@
       credentials: "same-origin",
     })
       .then(function (res) {
-        if (res && res.status === 404 && typeof console !== "undefined" && console.warn) {
-          console.warn("[CD Insure] pkg_set returned 404 – the store has no handler for this app. Register a checkout package in Partner Center so the insurance line and total can update.");
+        if (res && res.status === 404 && !pkgSet404Warned && typeof console !== "undefined" && console.warn) {
+          pkgSet404Warned = true;
+          console.warn("[CD Insure] pkg_set returned 404 – expected unless a checkout package is registered. Using Cart API + price refetch instead.");
         }
         return doPriceRequest();
       })
@@ -402,7 +404,23 @@
               console.log("[CD Insure] Item Protection line added (200). Refetching price so Cart Transform total appears.");
             }
             refreshCheckoutPriceAfterCartChange();
-            setTimeout(function () { refreshCheckoutPriceAfterCartChange(); }, 1200);
+            setTimeout(function () {
+              refreshCheckoutPriceAfterCartChange();
+              setTimeout(function () {
+                if (typeof console !== "undefined" && console.log) {
+                  console.log("[CD Insure] Reloading page to show updated total ($210).");
+                }
+                try {
+                  if (typeof window !== "undefined" && window.top && window.top.location) {
+                    window.top.location.reload();
+                  } else if (typeof location !== "undefined" && location.reload) {
+                    location.reload();
+                  }
+                } catch (e) {
+                  if (typeof location !== "undefined" && location.reload) location.reload();
+                }
+              }, 800);
+            }, 1200);
           } else {
             debugLog("Cart API add failed " + (res ? res.status : "no res"), true);
             if (res && typeof console !== "undefined" && console.warn) {
@@ -454,6 +472,20 @@
         if (res && res.ok) {
           debugLog("Cart API: removed Item Protection line");
           refreshCheckoutPriceAfterCartChange();
+          setTimeout(function () {
+            if (typeof console !== "undefined" && console.log) {
+              console.log("[CD Insure] Reloading page to show updated total (protection removed).");
+            }
+            try {
+              if (typeof window !== "undefined" && window.top && window.top.location) {
+                window.top.location.reload();
+              } else if (typeof location !== "undefined" && location.reload) {
+                location.reload();
+              }
+            } catch (e) {
+              if (typeof location !== "undefined" && location.reload) location.reload();
+            }
+          }, 600);
         }
       })
       .catch(function (err) {
