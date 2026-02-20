@@ -412,8 +412,8 @@ async function createFunctionWithCode(
 
 /**
  * Bind Cart Transform with a function id. POST .../openapi/2024-07/function/cart-transform
- * Store API expects body: { id: string } (function id from Partner API Create).
- * @see https://www.shoplazza.dev/v2024.07/reference/bind-cart-transform-function
+ * Body format per official docs: https://www.shoplazza.dev/v2024.07/reference/bind-cart-transform-function
+ * (Use "Try It" there to confirm; we send function_id as in the Bind Cart Transform Function spec.)
  */
 async function bindCartTransformByFunctionId(
   host: string,
@@ -421,15 +421,18 @@ async function bindCartTransformByFunctionId(
   functionId: string
 ): Promise<{ ok: true } | { ok: false; status: number; body: string }> {
   const url = `https://${host}/openapi/${CART_TRANSFORM_OPENAPI_VERSION}/function/cart-transform`;
-  const id = String(functionId);
+  const function_id = String(functionId);
   const res = await fetch(url, {
     method: "POST",
-    headers: cartTransformHeaders(accessToken),
-    body: JSON.stringify({ id }),
+    headers: {
+      ...cartTransformHeaders(accessToken),
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ function_id }),
   });
   const text = await res.text();
   if (!res.ok) {
-    console.warn("[item-protection-product] Bind cart-transform failed:", res.status, "URL:", url, "body:", text?.slice(0, 300));
+    console.warn("[item-protection-product] Bind cart-transform failed:", res.status, "URL:", url, "body:", text?.slice(0, 500));
     return { ok: false, status: res.status, body: text };
   }
   console.info("[item-protection-product] Bind cart-transform succeeded:", res.status);

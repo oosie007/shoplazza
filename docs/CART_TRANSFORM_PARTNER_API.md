@@ -35,7 +35,7 @@ The reference builds a **WASM** from JavaScript (Javy) and sends it as `file`. T
 
 - **URL:** `POST https://{shop}/openapi/2024-07/function/cart-transform`
 - **Headers:** `Access-Token: <store_access_token>`
-- **Body (JSON):** `{ "id": "<function id from Create>" }` — the store API expects the field name **`id`** (not `function_id`); value is the function id from Partner API Create.
+- **Body (JSON):** Check the official [Bind Cart Transform Function](https://www.shoplazza.dev/v2024.07/reference/bind-cart-transform-function) page (use **Try It** to see the exact request body). We send `{ "function_id": "<id from Partner API Create>" }`. If you get 400, the response body will state the required field; we log it in Vercel.
 
 ## Flow in the reference
 
