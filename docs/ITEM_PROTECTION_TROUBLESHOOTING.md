@@ -29,30 +29,35 @@ If you see **Cart API response: status 406** (or 400, 404):
    - **Request payload** – should include `product_id`, `variant_id`, `quantity: 1`.
    - **Response** – status 200 and response body. If 200, the response usually includes the updated cart with a new line for “Item protection”.
 
-### 3. Checkout page shows different products than GET /api/cart
+### 3. Cart API 200 but nothing appears on checkout / total doesn’t update
 
-If the **checkout page** shows one set of line items (e.g. “Legendary Whitetails…”) but a **GET /api/cart** (or the cart response in Network) shows different items (e.g. “Jabra earphones”):
+If the console shows **Cart API response: status 200** and **Item Protection line added (200)** but the order summary on the **checkout page** doesn’t show the protection line or the total doesn’t change:
 
-- Checkout may be using a **different cart or order session** than the one the Cart API updates. For example:
-  - The storefront cart (used by `/api/cart`) might be a different session from the “checkout cart” that the checkout UI reads from.
-  - Or the cart was copied when you entered checkout, and later changes to the storefront cart don’t appear on the checkout page until it refreshes.
+- Check the console for **`[CD Insure] Price refetch status`** and **`Price response total=… line_items=…`**. That shows whether the store’s price endpoint returned updated data and we called `onPricesChange`. If `line_items` doesn’t increase after toggle ON, the **checkout** may be using a different cart/order than `/api/cart` (e.g. a snapshot from when the customer entered checkout).
+- **pkg_set 404** is expected (we don’t have a checkout package). It doesn’t block the Cart API or Cart Transform; the 404 is for the alternate “Worry-Free style” path.
 
 **What to try:**
 
-1. **Add Item Protection on the cart page, then go to checkout**  
-   Add the product to cart on the **store’s cart page** (before clicking “Checkout”), then proceed to checkout. If the line appears there, the Cart API is working and the issue is how checkout binds to that cart.
+1. **Turn on Item Protection on the cart page, then go to checkout**  
+   On the **store’s cart page** (before clicking “Checkout”), use the widget to turn Item Protection ON so the line is in the cart when you enter checkout. If the line and total then appear correctly, the issue is that checkout isn’t reflecting live changes to `/api/cart` until you re-enter or refresh.
 
-2. **Refresh checkout after toggling**  
-   Toggle Item Protection ON, then refresh the checkout page (or go to the next step and back). See if the protection line appears after the refresh.
+2. **After toggling on checkout, refresh the page**  
+   Toggle Item Protection ON, then reload the checkout page (or go to the next step and back). See if the protection line and total appear after the refresh.
 
 3. **Ask Shoplazza**  
-   Confirm whether, on the checkout domain, `POST /api/cart` updates the **same** cart that the checkout UI displays, or if checkout uses a separate “order”/cart and there is a different API to add lines during checkout.
+   Confirm whether checkout displays the same cart as `POST /api/cart` or a separate “order”/cart, and if there’s an API to add a line to the checkout order during checkout.
 
-### 4. pkg_set 404
+### 4. Checkout page shows different products than GET /api/cart
+
+If the **checkout page** shows one set of line items but **GET /api/cart** (or the cart response in Network) shows different items:
+
+- Checkout may be using a **different cart or order session** than the one the Cart API updates (e.g. a snapshot from when they entered checkout). Use the workarounds in §3 above.
+
+### 5. pkg_set 404
 
 You can ignore **pkg_set 404**. We don’t use that path; we use the Cart API (add/remove line) and Cart Transform (set price). The 404 is expected unless a checkout package is registered.
 
-### 5. Cart Transform (price stays $0, total doesn’t include protection)
+### 6. Cart Transform (price stays $0, total doesn’t include protection)
 
 If the Item Protection **line** is in the cart (you see it in the cart API response with price "0.00") but the **checkout total doesn’t include the $40**:
 

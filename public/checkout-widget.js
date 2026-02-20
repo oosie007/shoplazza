@@ -302,6 +302,8 @@
   /**
    * After Cart API add/remove, refetch price from store so Shoplazza runs Cart Transform
    * and we push the new total to the checkout UI via onPricesChange.
+   * If checkout uses a snapshot from when the customer entered, the line may not appear
+   * until they go back to cart and return to checkout (or refresh).
    */
   function refreshCheckoutPriceAfterCartChange() {
     var orderToken = getOrderToken();
@@ -316,14 +318,32 @@
         body: JSON.stringify(payload),
         credentials: "same-origin",
       }).then(function (res) {
+        if (typeof console !== "undefined" && console.log) {
+          console.log("[CD Insure] Price refetch status " + (res ? res.status : "none"));
+        }
         if (res && res.ok && hasCheckoutAPI && CheckoutAPI.store && typeof CheckoutAPI.store.onPricesChange === "function") {
           res.json().then(function (pricesFromServer) {
             try {
-              if (pricesFromServer) CheckoutAPI.store.onPricesChange(pricesFromServer);
-            } catch (e) {}
-          }).catch(function () {});
+              if (pricesFromServer) {
+                if (typeof console !== "undefined" && console.log) {
+                  var total = pricesFromServer.total_price != null ? pricesFromServer.total_price : pricesFromServer.total;
+                  var count = Array.isArray(pricesFromServer.line_items) ? pricesFromServer.line_items.length : 0;
+                  console.log("[CD Insure] Price response total=" + total + " line_items=" + count + ", calling onPricesChange");
+                }
+                CheckoutAPI.store.onPricesChange(pricesFromServer);
+              }
+            } catch (e) {
+              if (typeof console !== "undefined" && console.warn) console.warn("[CD Insure] onPricesChange error", e);
+            }
+          }).catch(function (err) {
+            if (typeof console !== "undefined" && console.warn) console.warn("[CD Insure] Price response parse error", err);
+          });
+        } else if (res && !res.ok && typeof console !== "undefined" && console.warn) {
+          res.text().then(function (t) { console.warn("[CD Insure] Price refetch " + res.status, t.slice(0, 200)); }).catch(function () {});
         }
-      }).catch(function () {});
+      }).catch(function (err) {
+        if (typeof console !== "undefined" && console.warn) console.warn("[CD Insure] Price refetch failed", err && err.message ? err.message : err);
+      });
     }, 400);
   }
 
