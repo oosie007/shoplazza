@@ -34,27 +34,33 @@ export type CreateProductResult =
  */
 export async function createItemProtectionProduct(
   shop: string,
-  accessToken: string
+  accessToken: string,
+  appBaseUrl?: string
 ): Promise<{ productId: string; variantId: string } | null> {
-  const result = await createItemProtectionProductWithError(shop, accessToken);
+  const result = await createItemProtectionProductWithError(shop, accessToken, appBaseUrl);
   return "error" in result ? null : result;
 }
 
 export async function createItemProtectionProductWithError(
   shop: string,
-  accessToken: string
+  accessToken: string,
+  appBaseUrl?: string
 ): Promise<CreateProductResult> {
   const host = normalizeShop(shop);
   const url = `https://${host}/openapi/${PRODUCTS_OPENAPI_VERSION}/products`;
 
-  // 2025-06 API expects CreateProductRequest with product object; Product.values is required.
+  const base = (appBaseUrl || process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "");
+  const imageSrc = base ? `${base}/item-protection-product.png` : "https://placehold.co/64x64/191919/white?text=IP";
+  const images = [{ src: imageSrc }];
+
+  // 2025-06 API expects CreateProductRequest with product object; Product.values and Product.Images (≥1) required.
   const product = {
     title: "Item protection",
     brief: "Protection for your order (added at checkout).",
     has_only_default_variant: true,
     options: [{ name: "Title", values: ["Default"] }],
     values: ["Default"],
-    images: [],
+    images,
     variants: [
       {
         option1: "Default",
@@ -143,7 +149,7 @@ export async function ensureItemProtectionProductWithError(
   | { productId: string; variantId: string }
   | { error: string }
 > {
-  const created = await createItemProtectionProductWithError(shop, accessToken);
+  const created = await createItemProtectionProductWithError(shop, accessToken, callbackBaseUrl);
   if ("error" in created) return created;
   const { prisma } = await import("@/lib/db");
   await prisma.storeSettings.update({
