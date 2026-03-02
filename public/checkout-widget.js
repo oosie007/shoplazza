@@ -240,8 +240,97 @@
   }
 
   /**
-   * 1) Try pkg_set (store may 404 if app has not registered a checkout package).
-   * 2) POST /api/checkout/price with current state; when pkg_set is 404 we also try
+   * Create insurance quote via pkg_create endpoint.
+   * This is called before pkg_set when the toggle is ON to generate a quote_id.
+   */
+  function createInsuranceQuote(enabled) {
+    if (!enabled) return Promise.resolve(null);
+    const orderToken = getOrderToken();
+    if (!orderToken) return Promise.resolve(null);
+    const origin = getStoreOrigin();
+    var pricePayload = getPricePayload();
+    if (!pricePayload) return Promise.resolve(null);
+
+    var quotePayload = {
+      data: {
+        order_id: orderToken,
+        currency_code: pricePayload.currency_code || "USD",
+        line_items: pricePayload.line_items || [],
+        shipping_address: pricePayload.shipping_address || {},
+        customer: pricePayload.customer || {},
+        config: pricePayload.config || {},
+        payment_line: pricePayload.payment_line || {},
+      }
+    };
+
+    debugLog("pkg_create: posting to " + origin + "/api/insurance/v1/quote/pkg_create");
+    return fetch(origin + "/api/insurance/v1/quote/pkg_create", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(quotePayload),
+      credentials: "same-origin",
+    })
+      .then(function (res) {
+        if (res && res.ok) {
+          return res.json().then(function (data) {
+            var quoteId = data && data.data && data.data.quote_id;
+            if (quoteId) {
+              debugLog("pkg_create: got quote_id " + quoteId);
+              return quoteId;
+            }
+            return null;
+          }).catch(function () { return null; });
+        }
+        debugLog("pkg_create failed: " + (res ? res.status : "no response"), true);
+        return null;
+      })
+      .catch(function (err) {
+        debugLog("pkg_create error: " + (err && err.message ? err.message : String(err)), true);
+        return null;
+      });
+  }
+
+  /**
+   * Query insurance quote pricing via pkg_query endpoint.
+   * This is called after pkg_create to get pricing based on the quote_id.
+   */
+  function queryInsuranceQuote(quoteId) {
+    if (!quoteId) return Promise.resolve(null);
+    const origin = getStoreOrigin();
+
+    var queryPayload = {
+      data: {
+        quote_id: quoteId
+      }
+    };
+
+    debugLog("pkg_query: posting to " + origin + "/api/insurance/v1/quote/pkg_query with quote_id " + quoteId);
+    return fetch(origin + "/api/insurance/v1/quote/pkg_query", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(queryPayload),
+      credentials: "same-origin",
+    })
+      .then(function (res) {
+        if (res && res.ok) {
+          return res.json().then(function (data) {
+            debugLog("pkg_query: got pricing response");
+            return data;
+          }).catch(function () { return null; });
+        }
+        debugLog("pkg_query failed: " + (res ? res.status : "no response"), true);
+        return null;
+      })
+      .catch(function (err) {
+        debugLog("pkg_query error: " + (err && err.message ? err.message : String(err)), true);
+        return null;
+      });
+  }
+
+  /**
+   * 1) If enabled, try pkg_create → pkg_query to get quote and pricing
+   * 2) Try pkg_set (store may 404 if app has not registered a checkout package).
+   * 3) POST /api/checkout/price with current state; when pkg_set is 404 we also try
    *    sending additional_prices in the price body so the total might still update.
    */
   function applyPremiumViaStoreCheckout(enabled) {
@@ -272,22 +361,53 @@
       });
     }
 
-    var pkgPayload = { data: { order_id: orderToken, switch_status: enabled ? 1 : 0 } };
-    if (settings && settings.checkoutPkgKey) pkgPayload.data.package_key = settings.checkoutPkgKey;
-    fetch(origin + "/api/insurance/v1/product/pkg_set", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(pkgPayload),
-      credentials: "same-origin",
-    })
-      .then(function (res) {
-        if (res && res.status === 404 && !pkgSet404Warned && typeof console !== "undefined" && console.warn) {
-          pkgSet404Warned = true;
-          console.warn("[CD Insure] pkg_set returned 404 – expected unless a checkout package is registered. Using Cart API + price refetch instead.");
-        }
-        return doPriceRequest();
+    // If enabled, create quote first, then pkg_set
+    if (enabled) {
+      createInsuranceQuote(true)
+        .then(function (quoteId) {
+          if (quoteId) {
+            return queryInsuranceQuote(quoteId);
+          }
+          return null;
+        })
+        .then(function () {
+          // After quote/pricing, do pkg_set
+          var pkgPayload = { data: { order_id: orderToken, switch_status: 1 } };
+          if (settings && settings.checkoutPkgKey) pkgPayload.data.package_key = settings.checkoutPkgKey;
+          return fetch(origin + "/api/insurance/v1/product/pkg_set", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(pkgPayload),
+            credentials: "same-origin",
+          });
+        })
+        .then(function (res) {
+          if (res && res.status === 404 && !pkgSet404Warned && typeof console !== "undefined" && console.warn) {
+            pkgSet404Warned = true;
+            console.warn("[CD Insure] pkg_set returned 404 – expected unless a checkout package is registered. Using Cart API + price refetch instead.");
+          }
+          return doPriceRequest();
+        })
+        .catch(function () { return doPriceRequest(); });
+    } else {
+      // If disabled, just do pkg_set with switch_status=0
+      var pkgPayload = { data: { order_id: orderToken, switch_status: 0 } };
+      if (settings && settings.checkoutPkgKey) pkgPayload.data.package_key = settings.checkoutPkgKey;
+      fetch(origin + "/api/insurance/v1/product/pkg_set", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(pkgPayload),
+        credentials: "same-origin",
       })
-      .catch(function () { return doPriceRequest(); });
+        .then(function (res) {
+          if (res && res.status === 404 && !pkgSet404Warned && typeof console !== "undefined" && console.warn) {
+            pkgSet404Warned = true;
+            console.warn("[CD Insure] pkg_set returned 404 – expected unless a checkout package is registered. Using Cart API + price refetch instead.");
+          }
+          return doPriceRequest();
+        })
+        .catch(function () { return doPriceRequest(); });
+    }
   }
 
   function clearHints(root) {
@@ -749,7 +869,7 @@
                 <div class="ip-title-row">Item protection <span class="ip-price-inline">for ${currencySymbol}${priceStr}</span></div>
               </div>
             </div>
-            ${!isDisabled ? `<button id="sp-switch" class="ip-toggle ${state === "on" ? "on" : ""}" type="button" aria-pressed="${state === "on"}"><span class="ip-toggle-thumb"></span></button>` : ""}
+            ${!isDisabled ? `<button id="sp-switch-cb" class="ip-toggle ${state === "on" ? "on" : ""}" type="button" aria-pressed="${state === "on"}"><span class="ip-toggle-thumb"></span></button>` : ""}
           </div>
           <div class="ip-body">
             ${!isDisabled
