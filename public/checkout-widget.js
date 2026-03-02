@@ -4,7 +4,7 @@
 // Debug on mobile: add ?cd_debug=1 to checkout URL, or on same store run localStorage.setItem('cd_insure_debug','1') then open checkout on phone.
 
 (function () {
-  console.log("[CD INSURE] Widget version: 2025-03-02-simplified-no-worryfree (using only /api/checkout/price)");
+  console.log("[CD INSURE] Widget version: 2025-03-02-cart-refresh-fix (remove and re-add to trigger UI)");
   const shopDomain = window.SHOPLAZZA_SHOP_DOMAIN || (typeof location !== "undefined" && location.hostname ? location.hostname : "");
   const hasCheckoutAPI = typeof CheckoutAPI !== "undefined";
   const APP_BASE_URL = window.CD_INSURE_APP_URL || "";
@@ -672,11 +672,46 @@
           });
           if (alreadyHas) {
             if (typeof console !== "undefined" && console.log) {
-              console.log("[CD Insure] Item Protection already in cart, skipping add (avoids duplicate lines).");
+              console.log("[CD Insure] Item Protection already in cart, removing and re-adding to trigger UI refresh.");
             }
-            refreshCheckoutPriceAfterCartChange();
-            showRefreshHint("added");
-            return;
+            // Find the line and remove it first, then re-add it to trigger cart change
+            var line = items.find(function (item) {
+              var pid = item.product_id != null ? String(item.product_id) : (item.productId != null ? String(item.productId) : "");
+              return pid === String(productId);
+            });
+            if (!line) return;
+            var vid = line.variant_id != null ? line.variant_id : line.variantId;
+            var lid = line.id;
+            if (!vid) return;
+            // Remove the line
+            return fetch(cartUrl + "/" + encodeURIComponent(vid), {
+              method: "DELETE",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ id: lid, product_id: productId, variant_id: vid }),
+              credentials: "same-origin",
+            }).then(function (delRes) {
+              if (!delRes || !delRes.ok) {
+                if (typeof console !== "undefined" && console.log) {
+                  console.log("[CD Insure] Failed to remove existing item before re-adding");
+                }
+                return null;
+              }
+              if (typeof console !== "undefined" && console.log) {
+                console.log("[CD Insure] Removed existing item, now re-adding...");
+              }
+              // Re-add the item to trigger UI refresh
+              return fetch(cartUrl, {
+                method: "POST",
+                headers: { "Content-Type": "application/json", "Accept": "application/json" },
+                body: JSON.stringify({
+                  product_id: productId,
+                  variant_id: variantId,
+                  quantity: 1,
+                  refer_info: { source: "add_to_cart" },
+                }),
+                credentials: "same-origin",
+              });
+            });
           }
           if (typeof console !== "undefined" && console.log) {
             console.log("[CD Insure] Cart API: POST " + cartUrl + " with product_id=" + productId + " variant_id=" + variantId);
