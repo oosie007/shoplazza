@@ -50,6 +50,9 @@ export async function GET(request: NextRequest) {
     itemProtectionProductId: s.itemProtectionProductId ?? undefined,
     itemProtectionVariantId: s.itemProtectionVariantId ?? undefined,
     widgetInjectionPoint: s.widgetInjectionPoint ?? "checkout",
+    location_valid: s.location_valid,
+    store_country_code: store.country_code || "",
+    store_country_name: store.country_name || "",
   });
 }
 
@@ -158,5 +161,8 @@ export async function PATCH(request: NextRequest) {
     itemProtectionProductId: updated.itemProtectionProductId ?? undefined,
     itemProtectionVariantId: updated.itemProtectionVariantId ?? undefined,
     widgetInjectionPoint: updated.widgetInjectionPoint ?? "checkout",
+    location_valid: updated.location_valid,
+    store_country_code: store.country_code || "",
+    store_country_name: store.country_name || "",
   });
 }
