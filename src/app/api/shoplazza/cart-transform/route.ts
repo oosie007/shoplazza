@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
 
   console.info("[cart-transform]", { shop, protectionLineId: protectionLine.id, subtotalOther, fixedPercentAll, adjustment });
   return NextResponse.json({
-    operations: {
+    operation: {
       update: [
         {
           id: protectionLine.id,
