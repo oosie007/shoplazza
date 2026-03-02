@@ -21,6 +21,7 @@ export const settingsPatchSchema = z
     claimPortalConfigured: z.boolean().optional(),
     itemProtectionProductId: z.string().min(1).optional().or(z.literal("")),
     itemProtectionVariantId: z.string().min(1).optional().or(z.literal("")),
+    widgetInjectionPoint: z.enum(["checkout", "cart"]).optional(),
   });
 
 /** POST /api/checkout/apply-fee body */
