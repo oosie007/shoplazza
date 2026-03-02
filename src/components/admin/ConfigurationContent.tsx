@@ -295,6 +295,68 @@ export function ConfigurationContent() {
             </div>
           </section>
 
+
+          {/* Supported Shipping Countries */}
+          <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
+            <h2 className="text-lg font-semibold text-zinc-900">Supported Shipping Countries</h2>
+            <p className="mt-2 text-sm text-zinc-600">
+              Select which countries customers can ship to and still purchase Item Protection. Leave empty to allow all countries.
+            </p>
+            
+            {/* Country Code Definitions */}
+            <div className="mt-4 space-y-2">
+              {[
+                { code: "GB", name: "United Kingdom", flag: "🇬🇧" },
+                { code: "FR", name: "France", flag: "🇫🇷" },
+                { code: "CH", name: "Switzerland", flag: "🇨🇭" },
+                { code: "NL", name: "Netherlands", flag: "🇳🇱" },
+              ].map((country) => (
+                <label key={country.code} className="flex cursor-pointer items-center gap-3 rounded-lg p-2 hover:bg-zinc-50">
+                  <input
+                    type="checkbox"
+                    checked={(settings?.supported_shipping_countries || []).includes(country.code)}
+                    onChange={(e) => {
+                      const current = settings?.supported_shipping_countries || [];
+                      const updated = e.target.checked
+                        ? [...current, country.code]
+                        : current.filter((c) => c !== country.code);
+                      updateSetting({ supported_shipping_countries: updated });
+                    }}
+                    className="h-4 w-4 rounded border-zinc-300 text-blue-600"
+                  />
+                  <span className="text-2xl">{country.flag}</span>
+                  <div>
+                    <p className="font-medium text-zinc-900">{country.name}</p>
+                    <p className="text-xs text-zinc-500">{country.code}</p>
+                  </div>
+                </label>
+              ))}
+            </div>
+
+            {/* Summary */}
+            <div className="mt-4 rounded-lg bg-zinc-50 p-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-zinc-600">Selected Countries</p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {(settings?.supported_shipping_countries || []).length === 0 ? (
+                  <span className="text-sm text-zinc-500">All countries allowed</span>
+                ) : (
+                  (settings?.supported_shipping_countries || []).map((code) => {
+                    const country = [
+                      { code: "GB", name: "UK" },
+                      { code: "FR", name: "France" },
+                      { code: "CH", name: "Switzerland" },
+                      { code: "NL", name: "Netherlands" },
+                    ].find((c) => c.code === code);
+                    return (
+                      <span key={code} className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-800">
+                        {country?.name || code}
+                      </span>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          </section>
           {/* Pricing */}
           <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
             <h2 className="text-lg font-medium text-zinc-900">Pricing</h2>
