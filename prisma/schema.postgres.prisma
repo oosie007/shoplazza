@@ -50,6 +50,8 @@ model StoreSettings {
   widgetInjectionPoint  String   @default("checkout")
   // Location validation: is store in supported country? (GB, FR, CH, NL)
   location_valid        Boolean  @default(false)
+  // Supported shipping countries for Item Protection
+  supported_shipping_countries String @default("[]") // JSON string: string[] of ISO country codes
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 
