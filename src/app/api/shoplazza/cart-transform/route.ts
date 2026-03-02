@@ -67,6 +67,7 @@ export async function POST(request: NextRequest) {
   }
 
   const fixedPercentAll = Number(settings.fixedPercentAll) || 0;
+  console.info("[cart-transform] Settings: protectionProductId=" + protectionProductId + ", fixedPercentAll=" + fixedPercentAll);
   let protectionLine: { id: string; product_id: string } | null = null;
   let subtotalOther = 0;
 
@@ -82,9 +83,12 @@ export async function POST(request: NextRequest) {
     const quantity = parseInt(String(line.quantity ?? "1"), 10) || 1;
     const lineTotal = price * quantity;
 
+    console.info("[cart-transform] Line: productId=" + productId + ", price=" + price + ", qty=" + quantity);
+
     if (productId === protectionProductId) {
       const lineId = String(line.id ?? line.item_id ?? "");
       protectionLine = { id: lineId, product_id: productId };
+      console.info("[cart-transform] Found protection line: id=" + lineId);
     } else {
       subtotalOther += lineTotal;
     }
