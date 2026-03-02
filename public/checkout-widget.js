@@ -635,14 +635,16 @@
           if (res.ok) {
             debugLog("Cart API: added Item Protection line");
             if (typeof console !== "undefined" && console.log) {
-              console.log("[CD Insure] Item Protection line added (200). Cart Transform will calculate fee automatically.");
+              console.log("[CD Insure] ✅ Item Protection line added (200)");
+              console.log("[CD Insure] 📡 Cart Transform is now running on Shoplazza backend");
+              console.log("[CD Insure] 💰 Waiting for checkout UI to update with fee...");
             }
             showRefreshHint("added");
           } else {
             debugLog("Cart API add failed " + (res ? res.status : "no res"), true);
             if (res && typeof console !== "undefined" && console.warn) {
               res.text().then(function (body) {
-                console.warn("[CD Insure] Cart POST " + res.status + " response:", body.slice(0, 300));
+                console.warn("[CD Insure] ❌ Cart POST " + res.status + " response:", body.slice(0, 300));
               }).catch(function () {});
             }
             showCartApiFailedHint(res ? res.status : 0);
@@ -690,11 +692,18 @@
         if (res && res.ok) {
           debugLog("Cart API: removed Item Protection line");
           clearHints();
+          if (typeof console !== "undefined" && console.log) {
+            console.log("[CD Insure] ✅ Item Protection line removed (200)");
+            console.log("[CD Insure] 💰 Checkout total should update without fee");
+          }
           showRefreshHint("removed");
         }
       })
       .catch(function (err) {
         debugLog("Cart API remove err " + (err && err.message ? err.message : String(err)), true);
+        if (typeof console !== "undefined" && console.warn) {
+          console.warn("[CD Insure] ❌ Cart API remove error:", err && err.message ? err.message : String(err));
+        }
       });
   }
 
@@ -719,7 +728,8 @@
   const FEE_LABEL = "Item protection";
 
   function applyPremium(enabled) {
-    console.log("[CD INSURE] applyPremium called with enabled=" + enabled);
+    console.log("[CD INSURE] 🔔 Toggle clicked: insurance " + (enabled ? "ON" : "OFF"));
+    console.log("[CD INSURE] 💲 Fee amount: $" + premiumAmount.toFixed(2));
     var payload = enabled
       ? [{ label: FEE_LABEL, amount: premiumAmount.toFixed(2) }]
       : [];
