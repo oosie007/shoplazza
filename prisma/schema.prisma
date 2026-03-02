@@ -47,6 +47,8 @@ model StoreSettings {
   // Cart API: add Item Protection as a line item (product) when toggle ON. Optional.
   itemProtectionProductId String?
   itemProtectionVariantId  String?
+  // Widget injection point: where the widget is injected ("checkout" = checkout page, "cart" = cart page)
+  widgetInjectionPoint  String   @default("checkout")
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 

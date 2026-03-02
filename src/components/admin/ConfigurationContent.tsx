@@ -22,6 +22,7 @@ type Settings = {
   claimPortalConfigured: boolean;
   itemProtectionProductId?: string;
   itemProtectionVariantId?: string;
+  widgetInjectionPoint?: string;
 };
 
 function getShopFromQuery(): string | null {
@@ -368,6 +369,44 @@ export function ConfigurationContent() {
               />
               <span>Show &quot;Powered by Chubb&quot; logo</span>
             </label>
+          </section>
+
+          {/* Widget injection point */}
+          <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
+            <h2 className="text-lg font-medium text-zinc-900">Widget placement</h2>
+            <p className="mt-0.5 text-sm text-zinc-600">
+              Choose where to display the Item Protection widget.
+            </p>
+            <div className="mt-3 space-y-2">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="widgetInjectionPoint"
+                  value="checkout"
+                  checked={(settings?.widgetInjectionPoint ?? "checkout") === "checkout"}
+                  onChange={() => updateSetting({ widgetInjectionPoint: "checkout" })}
+                  className="h-4 w-4"
+                />
+                <div>
+                  <span className="font-medium block">Checkout page</span>
+                  <span className="text-xs text-zinc-500">Widget appears during purchase. Customer may need to reload page to see updated total.</span>
+                </div>
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="widgetInjectionPoint"
+                  value="cart"
+                  checked={(settings?.widgetInjectionPoint ?? "checkout") === "cart"}
+                  onChange={() => updateSetting({ widgetInjectionPoint: "cart" })}
+                  className="h-4 w-4"
+                />
+                <div>
+                  <span className="font-medium block">Cart page</span>
+                  <span className="text-xs text-zinc-500">Widget appears before checkout. Total updates immediately (recommended).</span>
+                </div>
+              </label>
+            </div>
           </section>
 
           {/* Cart totals: we create the product automatically; merchants leave fields blank */}
