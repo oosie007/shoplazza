@@ -377,50 +377,50 @@
       });
     }
 
-    // If enabled, create quote first, then pkg_set
+    // Match Worry-Free sequence: pkg_set → price → pkg_create
     if (enabled) {
-      createInsuranceQuote(true)
-        .then(function (quoteId) {
-          if (quoteId) {
-            debugLog("quote created, querying pricing for quote_id: " + quoteId);
-            return queryInsuranceQuote(quoteId);
-          }
-          debugLog("quote creation failed or returned no quote_id, skipping pkg_query");
-          return null;
-        })
-        .then(function (queryResponse) {
-          if (queryResponse) {
-            debugLog("pkg_query completed successfully");
-          }
-          // After quote/pricing attempt, do pkg_set regardless
-          debugLog("proceeding to pkg_set");
-          var pkgPayload = { data: { order_id: orderToken, switch_status: 1 } };
-          if (settings && settings.checkoutPkgKey) pkgPayload.data.package_key = settings.checkoutPkgKey;
-          return fetch(origin + "/api/insurance/v1/product/pkg_set", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(pkgPayload),
-            credentials: "same-origin",
-          });
-        })
+      console.log("[CD INSURE] Starting enabled flow with pkg_set → price → pkg_create sequence");
+      var pkgPayload = { data: { order_id: orderToken, switch_status: 1 } };
+      if (settings && settings.checkoutPkgKey) pkgPayload.data.package_key = settings.checkoutPkgKey;
+
+      fetch(origin + "/api/insurance/v1/product/pkg_set", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(pkgPayload),
+        credentials: "same-origin",
+      })
         .then(function (res) {
+          console.log("[CD INSURE] pkg_set response: status " + (res ? res.status : "unknown"));
           if (res && res.status === 404 && !pkgSet404Warned && typeof console !== "undefined" && console.warn) {
             pkgSet404Warned = true;
-            console.warn("[CD Insure] pkg_set returned 404 – expected unless a checkout package is registered. Using Cart API + price refetch instead.");
+            console.warn("[CD Insure] pkg_set returned 404 – expected unless a checkout package is registered.");
           }
-          debugLog("pkg_set completed, calling checkout/price");
           return doPriceRequest();
         })
         .then(function () {
-          debugLog("price updated, calling backend apply-fee");
-          // After pkg_set and price update, notify backend about the fee
+          console.log("[CD INSURE] price updated, notifying backend and creating quote");
+          // After price is updated, notify backend
           applyPremiumViaBackend(true);
+          // Then create quote for tracking/logging
+          createInsuranceQuote(true)
+            .then(function (quoteId) {
+              console.log("[CD INSURE] quote created: " + (quoteId ? quoteId : "null"));
+              if (quoteId) {
+                return queryInsuranceQuote(quoteId).then(function () {
+                  console.log("[CD INSURE] pkg_query completed");
+                });
+              }
+            })
+            .catch(function (err) {
+              console.log("[CD INSURE] quote creation error: " + (err && err.message ? err.message : String(err)));
+            });
         })
         .catch(function (err) {
-          debugLog("error in enabled flow: " + (err && err.message ? err.message : String(err)), true);
-          return doPriceRequest();
+          console.log("[CD INSURE] Error in enabled flow: " + (err && err.message ? err.message : String(err)), true);
+          doPriceRequest();
         });
     } else {
+      console.log("[CD INSURE] Starting disabled flow with pkg_set(0) → price");
       // If disabled, just do pkg_set with switch_status=0
       var pkgPayload = { data: { order_id: orderToken, switch_status: 0 } };
       if (settings && settings.checkoutPkgKey) pkgPayload.data.package_key = settings.checkoutPkgKey;
@@ -431,17 +431,22 @@
         credentials: "same-origin",
       })
         .then(function (res) {
+          console.log("[CD INSURE] pkg_set(0) response: status " + (res ? res.status : "unknown"));
           if (res && res.status === 404 && !pkgSet404Warned && typeof console !== "undefined" && console.warn) {
             pkgSet404Warned = true;
-            console.warn("[CD Insure] pkg_set returned 404 – expected unless a checkout package is registered. Using Cart API + price refetch instead.");
+            console.warn("[CD Insure] pkg_set returned 404 – expected unless a checkout package is registered.");
           }
           return doPriceRequest();
         })
         .then(function () {
+          console.log("[CD INSURE] price updated for disabled state");
           // After pkg_set and price update, notify backend about fee removal
           applyPremiumViaBackend(false);
         })
-        .catch(function () { return doPriceRequest(); });
+        .catch(function (err) {
+          console.log("[CD INSURE] Error in disabled flow: " + (err && err.message ? err.message : String(err)), true);
+          doPriceRequest();
+        });
     }
   }
 
