@@ -272,9 +272,9 @@
       });
     }
 
-    var pkgPayload = { order_token: orderToken, checked: enabled ? 1 : 0 };
-    if (settings && settings.checkoutPkgKey) pkgPayload.package_key = settings.checkoutPkgKey;
-    fetch(origin + "/api/checkout/pkg_set", {
+    var pkgPayload = { data: { order_id: orderToken, switch_status: enabled ? 1 : 0 } };
+    if (settings && settings.checkoutPkgKey) pkgPayload.data.package_key = settings.checkoutPkgKey;
+    fetch(origin + "/api/insurance/v1/product/pkg_set", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(pkgPayload),
@@ -749,7 +749,7 @@
                 <div class="ip-title-row">Item protection <span class="ip-price-inline">for ${currencySymbol}${priceStr}</span></div>
               </div>
             </div>
-            ${!isDisabled ? `<button class="ip-toggle ${state === "on" ? "on" : ""}" type="button" aria-pressed="${state === "on"}"><span class="ip-toggle-thumb"></span></button>` : ""}
+            ${!isDisabled ? `<button id="sp-switch" class="ip-toggle ${state === "on" ? "on" : ""}" type="button" aria-pressed="${state === "on"}"><span class="ip-toggle-thumb"></span></button>` : ""}
           </div>
           <div class="ip-body">
             ${!isDisabled
