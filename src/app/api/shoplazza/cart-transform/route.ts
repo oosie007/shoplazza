@@ -23,7 +23,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  console.info("[cart-transform] POST received");
+  console.info("[cart-transform] POST received at", new Date().toISOString());
   let body: unknown;
   try {
     body = await request.json();
