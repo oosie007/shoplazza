@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
     console.log("[auth/callback] Fetching store info for location validation");
     const storeInfo = await getStoreInfoFromShoplazza(shop, access_token);
     const countryCode = storeInfo.country_code?.toUpperCase();
-
+    console.log(`[auth/callback] Store country code: ${countryCode}, name: ${storeInfo.country_name}`);
     // Check if country is supported
     if (!isSupportedCountry(countryCode)) {
       console.warn(

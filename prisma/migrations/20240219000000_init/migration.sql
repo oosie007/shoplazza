@@ -30,7 +30,8 @@ CREATE TABLE "StoreSettings" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "StoreSettings_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "StoreSettings_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "StoreSettings_storeId_fkey" FOREIGN KEY ("storeId") REFERENCES "Store"("id") ON DELETE CASCADE
 );
 
 -- CreateIndex
@@ -38,6 +39,3 @@ CREATE UNIQUE INDEX "Store_shopDomain_key" ON "Store"("shopDomain");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "StoreSettings_storeId_key" ON "StoreSettings"("storeId");
-
--- AddForeignKey
-ALTER TABLE "StoreSettings" ADD CONSTRAINT "StoreSettings_storeId_fkey" FOREIGN KEY ("storeId") REFERENCES "Store"("id") ON DELETE CASCADE ON UPDATE CASCADE;

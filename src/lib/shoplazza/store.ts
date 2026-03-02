@@ -76,8 +76,8 @@ export async function getStoreInfoFromShoplazza(
   accessToken: string
 ): Promise<{ country_code?: string; country_name?: string; name?: string; id?: string }> {
   const host = shop.includes(".") ? shop : `${shop}.myshoplaza.com`;
-  const url = `https://${host}/openapi/2024-07/shops`;
-
+  const url = `https://${host}/openapi/2025-06/shop?fields[]`;
+  
   try {
     const response = await fetch(url, {
       method: "GET",
@@ -94,7 +94,7 @@ export async function getStoreInfoFromShoplazza(
 
     const data = await response.json();
     const shopData = data.data || data;
-
+    
     return {
       country_code: shopData.country_code || shopData.location?.country_code,
       country_name: shopData.country || shopData.location?.country_name,

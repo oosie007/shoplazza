@@ -74,6 +74,15 @@ export async function GET(request: NextRequest) {
     itemProtectionProductId: settings.itemProtectionProductId ?? undefined,
     itemProtectionVariantId: settings.itemProtectionVariantId ?? undefined,
     widgetInjectionPoint: settings.widgetInjectionPoint ?? "checkout",
+    supported_shipping_countries: (() => {
+      try {
+        return typeof settings.supported_shipping_countries === "string" && settings.supported_shipping_countries.length
+          ? JSON.parse(settings.supported_shipping_countries)
+          : [];
+      } catch {
+        return [];
+      }
+    })(),
     location_valid: settings.location_valid,
     store_country_code: store.country_code || "",
     store_country_name: store.country_name || "",
