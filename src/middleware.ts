@@ -11,9 +11,9 @@ const cspBase = [
   // Allow inline/eval in dev so Next.js scripts and HMR work inside the Shoplazza iframe.
   // For stricter production CSP, these can be revisited with nonces.
   "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-  "style-src 'self' 'unsafe-inline'",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "img-src 'self' blob: data: https:",
-  "font-src 'self'",
+  "font-src 'self' https://fonts.gstatic.com",
   "connect-src 'self' https: wss:",
   "object-src 'none'",
   "base-uri 'self'",
