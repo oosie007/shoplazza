@@ -37,11 +37,7 @@ const nextConfig: NextConfig = {
       tailwindcss: path.join(projectRoot, "node_modules", "tailwindcss"),
     },
   },
-  // Allow dev requests from ngrok when app is opened via tunnel or embedded in Shoplazza admin iframe
   allowedDevOrigins: [
-    "cb35-102-204-245-19.ngrok-free.app",
-    "*.ngrok-free.app",
-    "*.ngrok.io",
     "oostest.myshoplaza.com",
   ],
   async headers() {

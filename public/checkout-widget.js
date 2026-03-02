@@ -4,7 +4,7 @@
 // Debug on mobile: add ?cd_debug=1 to checkout URL, or on same store run localStorage.setItem('cd_insure_debug','1') then open checkout on phone.
 
 (function () {
-  console.log("[CD INSURE] Widget version: 2025-03-02-cart-refresh-fix (remove and re-add to trigger UI)");
+  console.log("[CD INSURE] Widget version: 2025-03-02-cart-transform-only (rely on Cart Transform for pricing)");
   const shopDomain = window.SHOPLAZZA_SHOP_DOMAIN || (typeof location !== "undefined" && location.hostname ? location.hostname : "");
   const hasCheckoutAPI = typeof CheckoutAPI !== "undefined";
   const APP_BASE_URL = window.CD_INSURE_APP_URL || "";
@@ -351,66 +351,15 @@
    * 3) POST /api/checkout/price with current state; when pkg_set is 404 we also try
    *    sending additional_prices in the price body so the total might still update.
    */
+  /**
+   * Notify backend of the fee toggle. The actual price update happens via:
+   * 1. applyPremiumViaCartAPI - adds/removes Item Protection product to cart
+   * 2. Cart Transform function (server-side) - runs when cart changes, updates Item Protection line price
+   * 3. Shoplazza automatically refreshes checkout total when cart is modified
+   */
   function applyPremiumViaStoreCheckout(enabled) {
-    console.log("[CD INSURE STORE CHECKOUT] applyPremiumViaStoreCheckout called with enabled=" + enabled);
-    const orderToken = getOrderToken();
-    if (!orderToken) {
-      console.log("[CD INSURE STORE CHECKOUT] no orderToken, exiting");
-      return;
-    }
-    console.log("[CD INSURE STORE CHECKOUT] orderToken=" + orderToken);
-    const origin = getStoreOrigin();
-    var pricePayload = getPricePayload();
-    if (!pricePayload) {
-      console.log("[CD INSURE STORE CHECKOUT] no pricePayload, exiting");
-      return;
-    }
-    console.log("[CD INSURE STORE CHECKOUT] pricePayload obtained, proceeding");
-
-    if (enabled) {
-      pricePayload.additional_prices = [
-        { name: "cd_insure_item_protection", price: premiumAmount.toFixed(2), fee_title: "Item protection" },
-      ];
-    } else {
-      pricePayload.additional_prices = [];
-    }
-
-    function doPriceRequest() {
-      return fetch(origin + "/api/checkout/price", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(pricePayload),
-        credentials: "same-origin",
-      }).then(function (res) {
-        // CheckoutAPI.store.onPricesChange(cb) registers a callback; it does not accept a prices object.
-        // The order summary is driven by the store's price response; we cannot push prices from the extension.
-        return res;
-      });
-    }
-
-    // Simple flow: Just update price (skip Worry-Free endpoints)
-    // The backend /api/checkout/price handles all fee calculation
-    if (enabled) {
-      console.log("[CD INSURE] Starting enabled flow: just update price");
-      doPriceRequest()
-        .then(function () {
-          console.log("[CD INSURE] price updated, notifying backend");
-          applyPremiumViaBackend(true);
-        })
-        .catch(function (err) {
-          console.log("[CD INSURE] Error in enabled flow: " + (err && err.message ? err.message : String(err)));
-        });
-    } else {
-      console.log("[CD INSURE] Starting disabled flow: update price without fee");
-      doPriceRequest()
-        .then(function () {
-          console.log("[CD INSURE] price updated for disabled state");
-          applyPremiumViaBackend(false);
-        })
-        .catch(function (err) {
-          console.log("[CD INSURE] Error in disabled flow: " + (err && err.message ? err.message : String(err)));
-        });
-    }
+    console.log("[CD INSURE STORE CHECKOUT] Notifying backend, relying on Cart Transform for price update");
+    applyPremiumViaBackend(enabled);
   }
 
   function clearHints(root) {
