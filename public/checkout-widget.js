@@ -271,6 +271,7 @@
     };
 
     console.log("[CD INSURE] pkg_create: posting to " + origin + "/api/insurance/v1/quote/pkg_create");
+    console.log("[CD INSURE] pkg_create payload: " + JSON.stringify(quotePayload));
     return fetch(origin + "/api/insurance/v1/quote/pkg_create", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -278,21 +279,30 @@
       credentials: "same-origin",
     })
       .then(function (res) {
+        console.log("[CD INSURE] pkg_create response status: " + (res ? res.status : "no response"));
         if (res && res.ok) {
           return res.json().then(function (data) {
+            console.log("[CD INSURE] pkg_create response data: " + JSON.stringify(data));
             var quoteId = data && data.data && data.data.quote_id;
             if (quoteId) {
-              debugLog("pkg_create: got quote_id " + quoteId);
+              console.log("[CD INSURE] pkg_create: got quote_id " + quoteId);
               return quoteId;
             }
+            console.log("[CD INSURE] pkg_create: no quote_id in response");
             return null;
-          }).catch(function () { return null; });
+          }).catch(function (err) {
+            console.log("[CD INSURE] pkg_create: error parsing JSON - " + (err && err.message ? err.message : String(err)));
+            return null;
+          });
         }
-        debugLog("pkg_create failed: " + (res ? res.status : "no response"), true);
-        return null;
+        console.log("[CD INSURE] pkg_create failed with status " + (res ? res.status : "no response"));
+        return res.text().then(function (text) {
+          console.log("[CD INSURE] pkg_create error response: " + text);
+          return null;
+        }).catch(function () { return null; });
       })
       .catch(function (err) {
-        debugLog("pkg_create error: " + (err && err.message ? err.message : String(err)), true);
+        console.log("[CD INSURE] pkg_create error: " + (err && err.message ? err.message : String(err)));
         return null;
       });
   }
