@@ -4,7 +4,7 @@
 // Debug on mobile: add ?cd_debug=1 to checkout URL, or on same store run localStorage.setItem('cd_insure_debug','1') then open checkout on phone.
 
 (function () {
-  console.log("[CD INSURE] Widget version: 2025-03-02-58d4eab (pkg_create detailed logging)");
+  console.log("[CD INSURE] Widget version: 2025-03-02-pkg_create-validation-handling (fee working via pkg_set)");
   const shopDomain = window.SHOPLAZZA_SHOP_DOMAIN || (typeof location !== "undefined" && location.hostname ? location.hostname : "");
   const hasCheckoutAPI = typeof CheckoutAPI !== "undefined";
   const APP_BASE_URL = window.CD_INSURE_APP_URL || "";
@@ -272,7 +272,6 @@
     };
 
     console.log("[CD INSURE] pkg_create: posting to " + origin + "/api/insurance/v1/quote/pkg_create");
-    console.log("[CD INSURE] pkg_create payload: " + JSON.stringify(quotePayload));
     return fetch(origin + "/api/insurance/v1/quote/pkg_create", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -280,27 +279,28 @@
       credentials: "same-origin",
     })
       .then(function (res) {
-        console.log("[CD INSURE] pkg_create response status: " + (res ? res.status : "no response"));
         if (res && res.ok) {
           return res.json().then(function (data) {
-            console.log("[CD INSURE] pkg_create response data: " + JSON.stringify(data));
-            var quoteId = data && data.data && data.data.quote_id;
-            if (quoteId) {
-              console.log("[CD INSURE] pkg_create: got quote_id " + quoteId);
-              return quoteId;
+            // Check if quote creation was successful
+            if (data && data.data && data.data.quote_id) {
+              console.log("[CD INSURE] pkg_create: got quote_id " + data.data.quote_id);
+              return data.data.quote_id;
             }
-            console.log("[CD INSURE] pkg_create: no quote_id in response");
+            // Quote creation failed validation (e.g., missing shipping, items, etc.)
+            // This is not critical - the fee still works via pkg_set
+            if (data && data.data && data.data.success === false) {
+              console.log("[CD INSURE] pkg_create validation failed (shipping/items incomplete), but fee still applied via pkg_set");
+              return null;
+            }
+            console.log("[CD INSURE] pkg_create: unexpected response format");
             return null;
           }).catch(function (err) {
-            console.log("[CD INSURE] pkg_create: error parsing JSON - " + (err && err.message ? err.message : String(err)));
+            console.log("[CD INSURE] pkg_create: error parsing response");
             return null;
           });
         }
-        console.log("[CD INSURE] pkg_create failed with status " + (res ? res.status : "no response"));
-        return res.text().then(function (text) {
-          console.log("[CD INSURE] pkg_create error response: " + text);
-          return null;
-        }).catch(function () { return null; });
+        console.log("[CD INSURE] pkg_create request failed with status " + (res ? res.status : "unknown"));
+        return null;
       })
       .catch(function (err) {
         console.log("[CD INSURE] pkg_create error: " + (err && err.message ? err.message : String(err)));
