@@ -244,12 +244,19 @@
    * This is called before pkg_set when the toggle is ON to generate a quote_id.
    */
   function createInsuranceQuote(enabled) {
+    console.log("[CD INSURE] createInsuranceQuote called with enabled=" + enabled);
     if (!enabled) return Promise.resolve(null);
     const orderToken = getOrderToken();
-    if (!orderToken) return Promise.resolve(null);
+    if (!orderToken) {
+      console.log("[CD INSURE] createInsuranceQuote: no orderToken");
+      return Promise.resolve(null);
+    }
     const origin = getStoreOrigin();
     var pricePayload = getPricePayload();
-    if (!pricePayload) return Promise.resolve(null);
+    if (!pricePayload) {
+      console.log("[CD INSURE] createInsuranceQuote: no pricePayload");
+      return Promise.resolve(null);
+    }
 
     var quotePayload = {
       data: {
@@ -263,7 +270,7 @@
       }
     };
 
-    debugLog("pkg_create: posting to " + origin + "/api/insurance/v1/quote/pkg_create");
+    console.log("[CD INSURE] pkg_create: posting to " + origin + "/api/insurance/v1/quote/pkg_create");
     return fetch(origin + "/api/insurance/v1/quote/pkg_create", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -334,20 +341,20 @@
    *    sending additional_prices in the price body so the total might still update.
    */
   function applyPremiumViaStoreCheckout(enabled) {
-    debugLog("applyPremiumViaStoreCheckout called with enabled=" + enabled);
+    console.log("[CD INSURE STORE CHECKOUT] applyPremiumViaStoreCheckout called with enabled=" + enabled);
     const orderToken = getOrderToken();
     if (!orderToken) {
-      debugLog("applyPremiumViaStoreCheckout: no orderToken, exiting");
+      console.log("[CD INSURE STORE CHECKOUT] no orderToken, exiting");
       return;
     }
-    debugLog("applyPremiumViaStoreCheckout: orderToken=" + orderToken);
+    console.log("[CD INSURE STORE CHECKOUT] orderToken=" + orderToken);
     const origin = getStoreOrigin();
     var pricePayload = getPricePayload();
     if (!pricePayload) {
-      debugLog("applyPremiumViaStoreCheckout: no pricePayload, exiting");
+      console.log("[CD INSURE STORE CHECKOUT] no pricePayload, exiting");
       return;
     }
-    debugLog("applyPremiumViaStoreCheckout: pricePayload obtained, proceeding");
+    console.log("[CD INSURE STORE CHECKOUT] pricePayload obtained, proceeding");
 
     if (enabled) {
       pricePayload.additional_prices = [
@@ -809,28 +816,24 @@
   const FEE_LABEL = "Item protection";
 
   function applyPremium(enabled) {
-    debugLog("applyPremium called with enabled=" + enabled);
+    console.log("[CD INSURE] applyPremium called with enabled=" + enabled);
     var payload = enabled
       ? [{ label: FEE_LABEL, amount: premiumAmount.toFixed(2) }]
       : [];
-    debugLog("applyPremium: payload=" + JSON.stringify(payload));
     if (hasCheckoutAPI && CheckoutAPI.store && typeof CheckoutAPI.store.setAdditionalPrices === "function") {
-      debugLog("applyPremium: calling CheckoutAPI.store.setAdditionalPrices");
       CheckoutAPI.store.setAdditionalPrices(payload);
     }
     if (hasCheckoutAPI && CheckoutAPI.store && typeof CheckoutAPI.store.updateAdditionalPrices === "function") {
-      debugLog("applyPremium: calling CheckoutAPI.store.updateAdditionalPrices");
       CheckoutAPI.store.updateAdditionalPrices(payload);
     }
     if (typeof window.PaymentEC === "object" && window.PaymentEC != null && typeof window.PaymentEC.setAdditionalPrices === "function") {
-      debugLog("applyPremium: calling PaymentEC.setAdditionalPrices");
       window.PaymentEC.setAdditionalPrices(payload);
     }
     // Cart API: add/remove Item Protection as a line item when product/variant IDs are configured
-    debugLog("applyPremium: calling applyPremiumViaCartAPI");
+    console.log("[CD INSURE] calling applyPremiumViaCartAPI");
     applyPremiumViaCartAPI(enabled);
     // applyPremiumViaStoreCheckout will handle the backend call after price update
-    debugLog("applyPremium: calling applyPremiumViaStoreCheckout");
+    console.log("[CD INSURE] calling applyPremiumViaStoreCheckout");
     applyPremiumViaStoreCheckout(enabled);
   }
 
