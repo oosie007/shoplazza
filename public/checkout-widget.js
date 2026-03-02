@@ -388,6 +388,10 @@
           }
           return doPriceRequest();
         })
+        .then(function () {
+          // After pkg_set and price update, notify backend about the fee
+          applyPremiumViaBackend(true);
+        })
         .catch(function () { return doPriceRequest(); });
     } else {
       // If disabled, just do pkg_set with switch_status=0
@@ -405,6 +409,10 @@
             console.warn("[CD Insure] pkg_set returned 404 – expected unless a checkout package is registered. Using Cart API + price refetch instead.");
           }
           return doPriceRequest();
+        })
+        .then(function () {
+          // After pkg_set and price update, notify backend about fee removal
+          applyPremiumViaBackend(false);
         })
         .catch(function () { return doPriceRequest(); });
     }
@@ -795,8 +803,8 @@
     }
     // Cart API: add/remove Item Protection as a line item when product/variant IDs are configured
     applyPremiumViaCartAPI(enabled);
+    // applyPremiumViaStoreCheckout will handle the backend call after price update
     applyPremiumViaStoreCheckout(enabled);
-    applyPremiumViaBackend(enabled);
   }
 
   /** "Powered by Chubb" combined SVG from Figma (180×22). */
