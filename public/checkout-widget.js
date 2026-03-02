@@ -4,6 +4,7 @@
 // Debug on mobile: add ?cd_debug=1 to checkout URL, or on same store run localStorage.setItem('cd_insure_debug','1') then open checkout on phone.
 
 (function () {
+  console.log("[CD INSURE] Widget version: 2025-03-02-58d4eab (pkg_create detailed logging)");
   const shopDomain = window.SHOPLAZZA_SHOP_DOMAIN || (typeof location !== "undefined" && location.hostname ? location.hostname : "");
   const hasCheckoutAPI = typeof CheckoutAPI !== "undefined";
   const APP_BASE_URL = window.CD_INSURE_APP_URL || "";
