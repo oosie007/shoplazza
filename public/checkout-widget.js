@@ -388,75 +388,27 @@
       });
     }
 
-    // Match Worry-Free sequence: pkg_set → price → pkg_create
+    // Simple flow: Just update price (skip Worry-Free endpoints)
+    // The backend /api/checkout/price handles all fee calculation
     if (enabled) {
-      console.log("[CD INSURE] Starting enabled flow with pkg_set → price → pkg_create sequence");
-      var pkgPayload = { data: { order_id: orderToken, switch_status: 1 } };
-      if (settings && settings.checkoutPkgKey) pkgPayload.data.package_key = settings.checkoutPkgKey;
-
-      fetch(origin + "/api/insurance/v1/product/pkg_set", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(pkgPayload),
-        credentials: "same-origin",
-      })
-        .then(function (res) {
-          console.log("[CD INSURE] pkg_set response: status " + (res ? res.status : "unknown"));
-          if (res && res.status === 404 && !pkgSet404Warned && typeof console !== "undefined" && console.warn) {
-            pkgSet404Warned = true;
-            console.warn("[CD Insure] pkg_set returned 404 – expected unless a checkout package is registered.");
-          }
-          return doPriceRequest();
-        })
+      console.log("[CD INSURE] Starting enabled flow: just update price");
+      doPriceRequest()
         .then(function () {
-          console.log("[CD INSURE] price updated, notifying backend and creating quote");
-          // After price is updated, notify backend
+          console.log("[CD INSURE] price updated, notifying backend");
           applyPremiumViaBackend(true);
-          // Then create quote for tracking/logging
-          createInsuranceQuote(true)
-            .then(function (quoteId) {
-              console.log("[CD INSURE] quote created: " + (quoteId ? quoteId : "null"));
-              if (quoteId) {
-                return queryInsuranceQuote(quoteId).then(function () {
-                  console.log("[CD INSURE] pkg_query completed");
-                });
-              }
-            })
-            .catch(function (err) {
-              console.log("[CD INSURE] quote creation error: " + (err && err.message ? err.message : String(err)));
-            });
         })
         .catch(function (err) {
-          console.log("[CD INSURE] Error in enabled flow: " + (err && err.message ? err.message : String(err)), true);
-          doPriceRequest();
+          console.log("[CD INSURE] Error in enabled flow: " + (err && err.message ? err.message : String(err)));
         });
     } else {
-      console.log("[CD INSURE] Starting disabled flow with pkg_set(0) → price");
-      // If disabled, just do pkg_set with switch_status=0
-      var pkgPayload = { data: { order_id: orderToken, switch_status: 0 } };
-      if (settings && settings.checkoutPkgKey) pkgPayload.data.package_key = settings.checkoutPkgKey;
-      fetch(origin + "/api/insurance/v1/product/pkg_set", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(pkgPayload),
-        credentials: "same-origin",
-      })
-        .then(function (res) {
-          console.log("[CD INSURE] pkg_set(0) response: status " + (res ? res.status : "unknown"));
-          if (res && res.status === 404 && !pkgSet404Warned && typeof console !== "undefined" && console.warn) {
-            pkgSet404Warned = true;
-            console.warn("[CD Insure] pkg_set returned 404 – expected unless a checkout package is registered.");
-          }
-          return doPriceRequest();
-        })
+      console.log("[CD INSURE] Starting disabled flow: update price without fee");
+      doPriceRequest()
         .then(function () {
           console.log("[CD INSURE] price updated for disabled state");
-          // After pkg_set and price update, notify backend about fee removal
           applyPremiumViaBackend(false);
         })
         .catch(function (err) {
-          console.log("[CD INSURE] Error in disabled flow: " + (err && err.message ? err.message : String(err)), true);
-          doPriceRequest();
+          console.log("[CD INSURE] Error in disabled flow: " + (err && err.message ? err.message : String(err)));
         });
     }
   }
