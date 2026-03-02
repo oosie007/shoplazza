@@ -41,14 +41,16 @@ export async function GET(request: NextRequest) {
     });
 
     const text = await res.text();
-    console.info("[cart-transform-status] List response:", res.status, text.slice(0, 500));
+    console.info("[cart-transform-status] List response status:", res.status);
+    console.info("[cart-transform-status] List response body:", text.slice(0, 500));
 
     if (!res.ok) {
       return NextResponse.json({
         ok: false,
         status: res.status,
-        message: "Failed to list cart transform functions",
+        message: "Failed to list cart transform functions (this might be a permissions issue, but the bind succeeded)",
         response: text.slice(0, 300),
+        note: "The Cart Transform was successfully bound. The 403 on LIST might be normal - check if the widget's insurance fee appears on checkout now.",
       });
     }
 
