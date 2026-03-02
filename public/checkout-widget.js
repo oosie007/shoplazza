@@ -590,6 +590,7 @@
    */
   function triggerCheckoutRefresh(checkoutPrices) {
     try {
+      console.log("[CD INSURE] triggerCheckoutRefresh called with totalPrice: " + (checkoutPrices && checkoutPrices.totalPrice));
       if (typeof window === "undefined" || !window.dispatchEvent) return;
       var detail = { prices: checkoutPrices };
       var events = [
@@ -610,8 +611,11 @@
         for (var j = 0; j < fns.length; j++) {
           if (typeof store[fns[j]] === "function") {
             try {
+              console.log("[CD INSURE] calling CheckoutAPI.store." + fns[j]);
               store[fns[j]](checkoutPrices);
-            } catch (e) {}
+            } catch (e) {
+              console.log("[CD INSURE] CheckoutAPI.store." + fns[j] + " threw error: " + (e && e.message ? e.message : String(e)));
+            }
           }
         }
       }
