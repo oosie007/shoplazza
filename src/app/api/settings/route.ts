@@ -49,6 +49,7 @@ export async function GET(request: NextRequest) {
     claimPortalConfigured: s.claimPortalConfigured,
     itemProtectionProductId: s.itemProtectionProductId ?? undefined,
     itemProtectionVariantId: s.itemProtectionVariantId ?? undefined,
+    widgetInjectionPoint: s.widgetInjectionPoint ?? "checkout",
   });
 }
 
@@ -109,6 +110,7 @@ export async function PATCH(request: NextRequest) {
     "claimPortalConfigured",
     "itemProtectionProductId",
     "itemProtectionVariantId",
+    "widgetInjectionPoint",
   ] as const;
   for (const key of allowed) {
     if (body[key] === undefined) continue;
@@ -155,5 +157,6 @@ export async function PATCH(request: NextRequest) {
     claimPortalConfigured: updated.claimPortalConfigured,
     itemProtectionProductId: updated.itemProtectionProductId ?? undefined,
     itemProtectionVariantId: updated.itemProtectionVariantId ?? undefined,
+    widgetInjectionPoint: updated.widgetInjectionPoint ?? "checkout",
   });
 }
