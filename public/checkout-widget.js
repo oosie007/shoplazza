@@ -366,12 +366,18 @@
       createInsuranceQuote(true)
         .then(function (quoteId) {
           if (quoteId) {
+            debugLog("quote created, querying pricing for quote_id: " + quoteId);
             return queryInsuranceQuote(quoteId);
           }
+          debugLog("quote creation failed or returned no quote_id, skipping pkg_query");
           return null;
         })
-        .then(function () {
-          // After quote/pricing, do pkg_set
+        .then(function (queryResponse) {
+          if (queryResponse) {
+            debugLog("pkg_query completed successfully");
+          }
+          // After quote/pricing attempt, do pkg_set regardless
+          debugLog("proceeding to pkg_set");
           var pkgPayload = { data: { order_id: orderToken, switch_status: 1 } };
           if (settings && settings.checkoutPkgKey) pkgPayload.data.package_key = settings.checkoutPkgKey;
           return fetch(origin + "/api/insurance/v1/product/pkg_set", {
@@ -386,13 +392,18 @@
             pkgSet404Warned = true;
             console.warn("[CD Insure] pkg_set returned 404 – expected unless a checkout package is registered. Using Cart API + price refetch instead.");
           }
+          debugLog("pkg_set completed, calling checkout/price");
           return doPriceRequest();
         })
         .then(function () {
+          debugLog("price updated, calling backend apply-fee");
           // After pkg_set and price update, notify backend about the fee
           applyPremiumViaBackend(true);
         })
-        .catch(function () { return doPriceRequest(); });
+        .catch(function (err) {
+          debugLog("error in enabled flow: " + (err && err.message ? err.message : String(err)), true);
+          return doPriceRequest();
+        });
     } else {
       // If disabled, just do pkg_set with switch_status=0
       var pkgPayload = { data: { order_id: orderToken, switch_status: 0 } };
