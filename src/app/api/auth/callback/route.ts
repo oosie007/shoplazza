@@ -44,8 +44,65 @@ export async function GET(request: NextRequest) {
   try {
     const { access_token } = await exchangeCodeForToken(shop, code, redirectUri);
 
-    const { saveInstallation, getStoreByShop } = await import("@/lib/shoplazza/store");
+    const {
+      saveInstallation,
+      getStoreByShop,
+      getStoreInfoFromShoplazza,
+      isSupportedCountry,
+      getCountryName,
+    } = await import("@/lib/shoplazza/store");
+
+    // Fetch store info to validate location
+    console.log("[auth/callback] Fetching store info for location validation");
+    const storeInfo = await getStoreInfoFromShoplazza(shop, access_token);
+    const countryCode = storeInfo.country_code?.toUpperCase();
+
+    // Check if country is supported
+    if (!isSupportedCountry(countryCode)) {
+      console.warn(
+        `[auth/callback] Store in unsupported country: ${countryCode} (${storeInfo.country_name})`
+      );
+      return NextResponse.json(
+        {
+          error: "Item Protection is not available in your country",
+          supportedCountries: ["UK", "France", "Switzerland", "Netherlands"],
+          storeCountry: storeInfo.country_name || "Unknown",
+          message:
+            "Item Protection is currently only available for merchants in the United Kingdom, France, Switzerland, and Netherlands.",
+        },
+        { status: 403 }
+      );
+    }
+
+    console.log(`[auth/callback] Location validated: ${countryCode} (${storeInfo.country_name})`);
+
+    // Save installation with location info
     await saveInstallation(shop, access_token);
+
+    // Update store with location information
+    const { prisma } = await import("@/lib/db");
+    const store = await getStoreByShop(shop);
+    if (store) {
+      await prisma.store.update({
+        where: { id: store.id },
+        data: {
+          country_code: countryCode || "",
+          country_name: storeInfo.country_name || getCountryName(countryCode || ""),
+        },
+      });
+
+      // Update settings: location is valid
+      if (store.settings) {
+        await prisma.storeSettings.update({
+          where: { id: store.settings.id },
+          data: {
+            location_valid: true,
+          },
+        });
+      }
+
+      console.log(`[auth/callback] Store saved with location: ${countryCode}`);
+    }
 
     // Create "Item Protection" product and bind Cart Transform (one product per store; no merchant action)
     try {

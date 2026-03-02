@@ -243,7 +243,7 @@ export function ConfigurationContent() {
                 onClick={() =>
                   updateSetting({ activated: !settings?.activated })
                 }
-                disabled={saving}
+                disabled={saving || !settings?.location_valid}
                 className={
                   "shrink-0 rounded-lg px-4 py-2 text-sm font-medium transition " +
                   (settings?.activated
@@ -253,6 +253,45 @@ export function ConfigurationContent() {
               >
                 {settings?.activated ? "Deactivate" : "Activate"}
               </button>
+            </div>
+          </section>
+
+          {/* Store Location */}
+          <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
+            <h2 className="text-lg font-semibold text-zinc-900">Store Location</h2>
+            <p className="mt-2 text-sm text-zinc-600">
+              Item Protection is only available for stores in the UK, France, Switzerland, and Netherlands.
+            </p>
+            <div className="mt-4 flex items-center gap-3">
+              {settings?.location_valid ? (
+                <>
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100">
+                    <span className="text-lg">✓</span>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-zinc-900">
+                      {settings?.store_country_name || "Verified"}
+                    </p>
+                    <p className="text-xs text-zinc-500">
+                      Supported country
+                    </p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100">
+                    <span className="text-lg">✗</span>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-zinc-900">
+                      {settings?.store_country_name || "Unknown"}
+                    </p>
+                    <p className="text-xs text-zinc-500">
+                      Unsupported country - cannot activate
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
           </section>
 

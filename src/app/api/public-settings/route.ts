@@ -74,6 +74,9 @@ export async function GET(request: NextRequest) {
     itemProtectionProductId: settings.itemProtectionProductId ?? undefined,
     itemProtectionVariantId: settings.itemProtectionVariantId ?? undefined,
     widgetInjectionPoint: settings.widgetInjectionPoint ?? "checkout",
+    location_valid: settings.location_valid,
+    store_country_code: store.country_code || "",
+    store_country_name: store.country_name || "",
   }));
 }
 

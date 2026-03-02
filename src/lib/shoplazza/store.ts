@@ -56,3 +56,69 @@ export async function getAllShops(): Promise<string[]> {
   const rows = await prisma.store.findMany({ select: { shopDomain: true } });
   return rows.map((r) => r.shopDomain);
 }
+
+// Supported countries for Item Protection
+export const SUPPORTED_COUNTRIES = {
+  GB: { code: "GB", name: "United Kingdom" },
+  FR: { code: "FR", name: "France" },
+  CH: { code: "CH", name: "Switzerland" },
+  NL: { code: "NL", name: "Netherlands" },
+} as const;
+
+export type CountryCode = keyof typeof SUPPORTED_COUNTRIES;
+
+/**
+ * Fetch store info from Shoplazza API
+ * Returns basic store information including country/location
+ */
+export async function getStoreInfoFromShoplazza(
+  shop: string,
+  accessToken: string
+): Promise<{ country_code?: string; country_name?: string; name?: string; id?: string }> {
+  const host = shop.includes(".") ? shop : `${shop}.myshoplaza.com`;
+  const url = `https://${host}/openapi/2024-07/shops`;
+
+  try {
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        "Access-Token": accessToken,
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      console.error(`[store] Failed to fetch shop info: ${response.status}`);
+      return {};
+    }
+
+    const data = await response.json();
+    const shopData = data.data || data;
+
+    return {
+      country_code: shopData.country_code || shopData.location?.country_code,
+      country_name: shopData.country || shopData.location?.country_name,
+      name: shopData.name,
+      id: shopData.id,
+    };
+  } catch (error) {
+    console.error("[store] Error fetching shop info:", error);
+    return {};
+  }
+}
+
+/**
+ * Validate if store's country is supported
+ */
+export function isSupportedCountry(countryCode?: string): countryCode is CountryCode {
+  if (!countryCode) return false;
+  return countryCode in SUPPORTED_COUNTRIES;
+}
+
+/**
+ * Get readable country name from code
+ */
+export function getCountryName(countryCode: string): string {
+  const country = SUPPORTED_COUNTRIES[countryCode as CountryCode];
+  return country ? country.name : countryCode;
+}
