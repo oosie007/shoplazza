@@ -4,7 +4,7 @@
 // Debug on mobile: add ?cd_debug=1 to checkout URL, or on same store run localStorage.setItem('cd_insure_debug','1') then open checkout on phone.
 
 (function () {
-  console.log("[CD INSURE] Widget version: 2025-03-02-58d4eab (pkg_create detailed logging)");
+  console.log("[CD INSURE] Widget version: 2025-03-02-simplified-no-worryfree (using only /api/checkout/price)");
   const shopDomain = window.SHOPLAZZA_SHOP_DOMAIN || (typeof location !== "undefined" && location.hostname ? location.hostname : "");
   const hasCheckoutAPI = typeof CheckoutAPI !== "undefined";
   const APP_BASE_URL = window.CD_INSURE_APP_URL || "";
@@ -272,7 +272,6 @@
     };
 
     console.log("[CD INSURE] pkg_create: posting to " + origin + "/api/insurance/v1/quote/pkg_create");
-    console.log("[CD INSURE] pkg_create payload: " + JSON.stringify(quotePayload));
     return fetch(origin + "/api/insurance/v1/quote/pkg_create", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -280,27 +279,28 @@
       credentials: "same-origin",
     })
       .then(function (res) {
-        console.log("[CD INSURE] pkg_create response status: " + (res ? res.status : "no response"));
         if (res && res.ok) {
           return res.json().then(function (data) {
-            console.log("[CD INSURE] pkg_create response data: " + JSON.stringify(data));
-            var quoteId = data && data.data && data.data.quote_id;
-            if (quoteId) {
-              console.log("[CD INSURE] pkg_create: got quote_id " + quoteId);
-              return quoteId;
+            // Check if quote creation was successful
+            if (data && data.data && data.data.quote_id) {
+              console.log("[CD INSURE] pkg_create: got quote_id " + data.data.quote_id);
+              return data.data.quote_id;
             }
-            console.log("[CD INSURE] pkg_create: no quote_id in response");
+            // Quote creation failed validation (e.g., missing shipping, items, etc.)
+            // This is not critical - the fee still works via pkg_set
+            if (data && data.data && data.data.success === false) {
+              console.log("[CD INSURE] pkg_create validation failed (shipping/items incomplete), but fee still applied via pkg_set");
+              return null;
+            }
+            console.log("[CD INSURE] pkg_create: unexpected response format");
             return null;
           }).catch(function (err) {
-            console.log("[CD INSURE] pkg_create: error parsing JSON - " + (err && err.message ? err.message : String(err)));
+            console.log("[CD INSURE] pkg_create: error parsing response");
             return null;
           });
         }
-        console.log("[CD INSURE] pkg_create failed with status " + (res ? res.status : "no response"));
-        return res.text().then(function (text) {
-          console.log("[CD INSURE] pkg_create error response: " + text);
-          return null;
-        }).catch(function () { return null; });
+        console.log("[CD INSURE] pkg_create request failed with status " + (res ? res.status : "unknown"));
+        return null;
       })
       .catch(function (err) {
         console.log("[CD INSURE] pkg_create error: " + (err && err.message ? err.message : String(err)));
@@ -388,75 +388,27 @@
       });
     }
 
-    // Match Worry-Free sequence: pkg_set → price → pkg_create
+    // Simple flow: Just update price (skip Worry-Free endpoints)
+    // The backend /api/checkout/price handles all fee calculation
     if (enabled) {
-      console.log("[CD INSURE] Starting enabled flow with pkg_set → price → pkg_create sequence");
-      var pkgPayload = { data: { order_id: orderToken, switch_status: 1 } };
-      if (settings && settings.checkoutPkgKey) pkgPayload.data.package_key = settings.checkoutPkgKey;
-
-      fetch(origin + "/api/insurance/v1/product/pkg_set", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(pkgPayload),
-        credentials: "same-origin",
-      })
-        .then(function (res) {
-          console.log("[CD INSURE] pkg_set response: status " + (res ? res.status : "unknown"));
-          if (res && res.status === 404 && !pkgSet404Warned && typeof console !== "undefined" && console.warn) {
-            pkgSet404Warned = true;
-            console.warn("[CD Insure] pkg_set returned 404 – expected unless a checkout package is registered.");
-          }
-          return doPriceRequest();
-        })
+      console.log("[CD INSURE] Starting enabled flow: just update price");
+      doPriceRequest()
         .then(function () {
-          console.log("[CD INSURE] price updated, notifying backend and creating quote");
-          // After price is updated, notify backend
+          console.log("[CD INSURE] price updated, notifying backend");
           applyPremiumViaBackend(true);
-          // Then create quote for tracking/logging
-          createInsuranceQuote(true)
-            .then(function (quoteId) {
-              console.log("[CD INSURE] quote created: " + (quoteId ? quoteId : "null"));
-              if (quoteId) {
-                return queryInsuranceQuote(quoteId).then(function () {
-                  console.log("[CD INSURE] pkg_query completed");
-                });
-              }
-            })
-            .catch(function (err) {
-              console.log("[CD INSURE] quote creation error: " + (err && err.message ? err.message : String(err)));
-            });
         })
         .catch(function (err) {
-          console.log("[CD INSURE] Error in enabled flow: " + (err && err.message ? err.message : String(err)), true);
-          doPriceRequest();
+          console.log("[CD INSURE] Error in enabled flow: " + (err && err.message ? err.message : String(err)));
         });
     } else {
-      console.log("[CD INSURE] Starting disabled flow with pkg_set(0) → price");
-      // If disabled, just do pkg_set with switch_status=0
-      var pkgPayload = { data: { order_id: orderToken, switch_status: 0 } };
-      if (settings && settings.checkoutPkgKey) pkgPayload.data.package_key = settings.checkoutPkgKey;
-      fetch(origin + "/api/insurance/v1/product/pkg_set", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(pkgPayload),
-        credentials: "same-origin",
-      })
-        .then(function (res) {
-          console.log("[CD INSURE] pkg_set(0) response: status " + (res ? res.status : "unknown"));
-          if (res && res.status === 404 && !pkgSet404Warned && typeof console !== "undefined" && console.warn) {
-            pkgSet404Warned = true;
-            console.warn("[CD Insure] pkg_set returned 404 – expected unless a checkout package is registered.");
-          }
-          return doPriceRequest();
-        })
+      console.log("[CD INSURE] Starting disabled flow: update price without fee");
+      doPriceRequest()
         .then(function () {
           console.log("[CD INSURE] price updated for disabled state");
-          // After pkg_set and price update, notify backend about fee removal
           applyPremiumViaBackend(false);
         })
         .catch(function (err) {
-          console.log("[CD INSURE] Error in disabled flow: " + (err && err.message ? err.message : String(err)), true);
-          doPriceRequest();
+          console.log("[CD INSURE] Error in disabled flow: " + (err && err.message ? err.message : String(err)));
         });
     }
   }
@@ -590,6 +542,7 @@
    */
   function triggerCheckoutRefresh(checkoutPrices) {
     try {
+      console.log("[CD INSURE] triggerCheckoutRefresh called with totalPrice: " + (checkoutPrices && checkoutPrices.totalPrice));
       if (typeof window === "undefined" || !window.dispatchEvent) return;
       var detail = { prices: checkoutPrices };
       var events = [
@@ -610,8 +563,11 @@
         for (var j = 0; j < fns.length; j++) {
           if (typeof store[fns[j]] === "function") {
             try {
+              console.log("[CD INSURE] calling CheckoutAPI.store." + fns[j]);
               store[fns[j]](checkoutPrices);
-            } catch (e) {}
+            } catch (e) {
+              console.log("[CD INSURE] CheckoutAPI.store." + fns[j] + " threw error: " + (e && e.message ? e.message : String(e)));
+            }
           }
         }
       }
