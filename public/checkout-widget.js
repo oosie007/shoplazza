@@ -4,7 +4,7 @@
 // Debug on mobile: add ?cd_debug=1 to checkout URL, or on same store run localStorage.setItem('cd_insure_debug','1') then open checkout on phone.
 
 (function () {
-  console.log("[CD INSURE] Widget version: 2025-03-02-cart-transform-only (rely on Cart Transform for pricing)");
+  console.log("[CD INSURE] Widget version: 2025-03-02-pure-cart-api (Cart API only, Cart Transform handles pricing)");
   const shopDomain = window.SHOPLAZZA_SHOP_DOMAIN || (typeof location !== "undefined" && location.hostname ? location.hostname : "");
   const hasCheckoutAPI = typeof CheckoutAPI !== "undefined";
   const APP_BASE_URL = window.CD_INSURE_APP_URL || "";
@@ -533,56 +533,6 @@
   }
 
   /**
-   * After Cart API add/remove, refetch price and notify checkout so the order summary can refresh (cart-only, like Worry Free).
-   */
-  function refreshCheckoutPriceAfterCartChange() {
-    var orderToken = getOrderToken();
-    if (!orderToken) return;
-    var payload = getPricePayload();
-    if (!payload) return;
-    var origin = getStoreOrigin();
-    setTimeout(function () {
-      fetch(origin + "/api/checkout/price", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-        credentials: "same-origin",
-      }).then(function (res) {
-        if (typeof console !== "undefined" && console.log) {
-          console.log("[CD Insure] Price refetch status " + (res ? res.status : "none"));
-        }
-        if (res && res.ok && hasCheckoutAPI && CheckoutAPI.store) {
-          res.json().then(function (pricesFromServer) {
-            try {
-              if (!pricesFromServer) return;
-              var data = pricesFromServer.data || pricesFromServer;
-              var prices = data.prices || data;
-              var items = data.line_items || data.lineItems || [];
-              var total = prices.total_price != null ? prices.total_price : prices.total;
-              var count = Array.isArray(items) ? items.length : 0;
-              if (typeof console !== "undefined" && console.log) {
-                console.log("[CD Insure] Price response total=" + total + " line_items=" + count + ", notifying checkout");
-              }
-              var checkoutPrices = toCheckoutPrices(prices, items);
-              checkoutPrices = mergeOurFeeIntoPrices(checkoutPrices);
-              // API has no setter (only getPrices/onPricesChange). Notify any custom listeners with full CheckoutPrices.
-              triggerCheckoutRefresh(checkoutPrices);
-            } catch (e) {
-              if (typeof console !== "undefined" && console.warn) console.warn("[CD Insure] onPricesChange error", e);
-            }
-          }).catch(function (err) {
-            if (typeof console !== "undefined" && console.warn) console.warn("[CD Insure] Price response parse error", err);
-          });
-        } else if (res && !res.ok && typeof console !== "undefined" && console.warn) {
-          res.text().then(function (t) { console.warn("[CD Insure] Price refetch " + res.status, t.slice(0, 200)); }).catch(function () {});
-        }
-      }).catch(function (err) {
-        if (typeof console !== "undefined" && console.warn) console.warn("[CD Insure] Price refetch failed", err && err.message ? err.message : err);
-      });
-    }, 400);
-  }
-
-  /**
    * Add or remove Item Protection as a cart line item using Shoplazza Cart API.
    * When itemProtectionProductId and itemProtectionVariantId are set in settings,
    * toggle ON adds the product to cart; toggle OFF removes it. Cart totals update automatically.
@@ -685,10 +635,8 @@
           if (res.ok) {
             debugLog("Cart API: added Item Protection line");
             if (typeof console !== "undefined" && console.log) {
-              console.log("[CD Insure] Item Protection line added (200). Refetching price. Use the link below to refresh the page if the total does not update.");
+              console.log("[CD Insure] Item Protection line added (200). Cart Transform will calculate fee automatically.");
             }
-            refreshCheckoutPriceAfterCartChange();
-            setTimeout(function () { refreshCheckoutPriceAfterCartChange(); }, 1200);
             showRefreshHint("added");
           } else {
             debugLog("Cart API add failed " + (res ? res.status : "no res"), true);
@@ -742,7 +690,6 @@
         if (res && res.ok) {
           debugLog("Cart API: removed Item Protection line");
           clearHints();
-          refreshCheckoutPriceAfterCartChange();
           showRefreshHint("removed");
         }
       })
