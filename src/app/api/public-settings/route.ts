@@ -73,6 +73,7 @@ export async function GET(request: NextRequest) {
     defaultAtCheckout: settings.defaultAtCheckout,
     itemProtectionProductId: settings.itemProtectionProductId ?? undefined,
     itemProtectionVariantId: settings.itemProtectionVariantId ?? undefined,
+    widgetInjectionPoint: settings.widgetInjectionPoint ?? "checkout",
   }));
 }
 
