@@ -334,11 +334,20 @@
    *    sending additional_prices in the price body so the total might still update.
    */
   function applyPremiumViaStoreCheckout(enabled) {
+    debugLog("applyPremiumViaStoreCheckout called with enabled=" + enabled);
     const orderToken = getOrderToken();
-    if (!orderToken) return;
+    if (!orderToken) {
+      debugLog("applyPremiumViaStoreCheckout: no orderToken, exiting");
+      return;
+    }
+    debugLog("applyPremiumViaStoreCheckout: orderToken=" + orderToken);
     const origin = getStoreOrigin();
     var pricePayload = getPricePayload();
-    if (!pricePayload) return;
+    if (!pricePayload) {
+      debugLog("applyPremiumViaStoreCheckout: no pricePayload, exiting");
+      return;
+    }
+    debugLog("applyPremiumViaStoreCheckout: pricePayload obtained, proceeding");
 
     if (enabled) {
       pricePayload.additional_prices = [
@@ -800,21 +809,28 @@
   const FEE_LABEL = "Item protection";
 
   function applyPremium(enabled) {
+    debugLog("applyPremium called with enabled=" + enabled);
     var payload = enabled
       ? [{ label: FEE_LABEL, amount: premiumAmount.toFixed(2) }]
       : [];
+    debugLog("applyPremium: payload=" + JSON.stringify(payload));
     if (hasCheckoutAPI && CheckoutAPI.store && typeof CheckoutAPI.store.setAdditionalPrices === "function") {
+      debugLog("applyPremium: calling CheckoutAPI.store.setAdditionalPrices");
       CheckoutAPI.store.setAdditionalPrices(payload);
     }
     if (hasCheckoutAPI && CheckoutAPI.store && typeof CheckoutAPI.store.updateAdditionalPrices === "function") {
+      debugLog("applyPremium: calling CheckoutAPI.store.updateAdditionalPrices");
       CheckoutAPI.store.updateAdditionalPrices(payload);
     }
     if (typeof window.PaymentEC === "object" && window.PaymentEC != null && typeof window.PaymentEC.setAdditionalPrices === "function") {
+      debugLog("applyPremium: calling PaymentEC.setAdditionalPrices");
       window.PaymentEC.setAdditionalPrices(payload);
     }
     // Cart API: add/remove Item Protection as a line item when product/variant IDs are configured
+    debugLog("applyPremium: calling applyPremiumViaCartAPI");
     applyPremiumViaCartAPI(enabled);
     // applyPremiumViaStoreCheckout will handle the backend call after price update
+    debugLog("applyPremium: calling applyPremiumViaStoreCheckout");
     applyPremiumViaStoreCheckout(enabled);
   }
 
