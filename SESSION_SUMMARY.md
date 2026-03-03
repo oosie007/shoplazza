@@ -71,7 +71,31 @@ node -c public/checkout-widget.js
 - Returns clear error message with supported countries if installation is rejected
 - Logs country code for debugging purposes
 
-### 3. Extension Configuration Updates
+### 3. Shipping Country Validation - `public/checkout-widget.js`
+
+**Challenge**: The widget needed to validate customer shipping addresses against allowed countries from the backend API.
+
+**Implementation**:
+- ✓ Re-enabled `isShippingCountrySupported()` function
+- ✓ Made it dynamic - retrieves allowed countries from `settings.allowedCountries` (from API)
+- ✓ Checks customer's shipping address country code against backend-defined allowed list
+- ✓ Disables widget if customer's country not in allowed list
+- ✓ Uses ES5 syntax: `indexOf()` instead of `includes()` for array checking
+
+**How It Works**:
+1. Widget fetches settings from `/api/public-settings` endpoint
+2. Settings include `allowedCountries` array (e.g., ["GB", "FR", "CH", "NL"])
+3. When customer selects shipping address country, widget checks against this list
+4. If country not allowed, widget shows: "Item protection is not available for this order."
+5. Country code validation aligns with merchant installation restrictions
+
+**Benefits**:
+- Centralized control: Countries configured in backend, not hardcoded
+- Flexible: Can change allowed countries without deploying widget code
+- User-friendly: Shows disabled state with clear message
+- Consistent: Same countries for merchant installation and customer checkout
+
+### 4. Extension Configuration Updates
 
 **Checkout Extension** (`checkout-extension/extension.json`):
 - Version bumped from 1.0 to 1.0.11
@@ -87,6 +111,8 @@ node -c public/checkout-widget.js
 ## Commit History
 
 ```
+7f188ea - Re-enable shipping country validation in widget
+b295e2d - Add comprehensive session summary documentation
 bf2e968 - Update extension versions and configurations after ES6+ widget conversion
 c4b767f - Re-enable location validation in auth callback
 385bf5f - Convert checkout-widget.js from ES6+ to ES5 syntax for Shoplazza compatibility
