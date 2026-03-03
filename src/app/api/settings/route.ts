@@ -166,10 +166,8 @@ export async function PATCH(request: NextRequest) {
       ? JSON.parse(updated.excludedCategoryIds)
       : [];
 
-  // Get widget injection point from JSON file
-  const widgetInjectionPoint = getWidgetInjectionPoint(shop);
   // Get updated widget injection point from JSON file
-  const updatedWidgetInjectionPoint = getWidgetInjectionPoint(shop);
+  const widgetInjectionPoint = getWidgetInjectionPoint(shop);
 
   return NextResponse.json({
     activated: updated.activated,
@@ -188,6 +186,5 @@ export async function PATCH(request: NextRequest) {
     itemProtectionProductId: updated.itemProtectionProductId ?? undefined,
     itemProtectionVariantId: updated.itemProtectionVariantId ?? undefined,
     widgetInjectionPoint,
-    widgetInjectionPoint: updatedWidgetInjectionPoint,
   });
 }
