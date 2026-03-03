@@ -1019,6 +1019,13 @@
           });
         });
       }
+      // Listen for shipping address changes to re-validate country support
+      if (hasCheckoutAPI && CheckoutAPI.address && typeof CheckoutAPI.address.onAddressChange === "function") {
+        CheckoutAPI.address.onAddressChange(function () {
+          debugLog("Address changed - re-rendering widget to update country validation");
+          renderWidget(root);
+        });
+      }
       // Re-mount when step changes so widget appears on contact_information and shipping_method too.
       if (hasCheckoutAPI && CheckoutAPI.step && typeof CheckoutAPI.step.onStepChange === "function") {
         CheckoutAPI.step.onStepChange(function () {
