@@ -1,0 +1,4 @@
+{
+  "buildCommand": "node scripts/prisma-generate.js && node scripts/prisma-migrate-deploy.js && next build",
+  "installCommand": "npm ci"
+}
