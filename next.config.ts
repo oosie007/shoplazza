@@ -1,0 +1,55 @@
+import type { NextConfig } from "next";
+import path from "path";
+import { fileURLToPath } from "url";
+
+// Pin project root so Turbopack/PostCSS resolve tailwindcss from this app (fixes "Can't resolve 'tailwindcss' in '.../dev'" when Cursor workspace root is parent)
+const getProjectRoot = (): string => {
+  if (typeof __dirname !== "undefined") return __dirname;
+  try {
+    return path.dirname(fileURLToPath(import.meta.url));
+  } catch {
+    const cwd = process.cwd();
+    return cwd.endsWith("shoplaza") ? cwd : path.join(cwd, "shoplaza");
+  }
+};
+
+// Use CSP frame-ancestors only (no X-Frame-Options) so Shoplazza can embed / and /admin; middleware sets frame-ancestors per path.
+const securityHeaders = [
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+];
+
+// Headers for / and /admin: allow Shoplazza to embed. Use * so any parent (nested iframes, angora, etc.) can embed; tighten to specific origins once parent is confirmed.
+const frameAncestorsCsp = {
+  key: "Content-Security-Policy",
+  value:
+    "frame-ancestors *",
+};
+
+const projectRoot = getProjectRoot();
+
+const nextConfig: NextConfig = {
+  turbopack: {
+    root: projectRoot,
+    // Force tailwindcss to resolve from this app when PostCSS runs (e.g. from parent workspace root)
+    resolveAlias: {
+      tailwindcss: path.join(projectRoot, "node_modules", "tailwindcss"),
+    },
+  },
+  allowedDevOrigins: [
+    "oostest.myshoplaza.com",
+  ],
+  async headers() {
+    return [
+      { source: "/", headers: [...securityHeaders, frameAncestorsCsp] },
+      { source: "/admin", headers: [...securityHeaders, frameAncestorsCsp] },
+      { source: "/admin/(.*)", headers: [...securityHeaders, frameAncestorsCsp] },
+      { source: "/api/auth", headers: [...securityHeaders, frameAncestorsCsp] },
+      { source: "/api/auth/(.*)", headers: [...securityHeaders, frameAncestorsCsp] },
+      { source: "/(.*)", headers: securityHeaders },
+    ];
+  },
+};
+
+export default nextConfig;

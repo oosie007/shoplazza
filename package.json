@@ -1,0 +1,42 @@
+{
+  "name": "shoplaza",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "node scripts/ensure-parent-node-modules.js && node scripts/run-dev.js",
+    "dev:https": "node scripts/ensure-parent-node-modules.js && node scripts/run-dev-https.js",
+    "build": "node scripts/prisma-generate.js && node scripts/prisma-migrate-deploy.js && next build",
+    "start": "next start",
+    "lint": "eslint",
+    "postinstall": "node scripts/ensure-parent-node-modules.js && node scripts/prisma-generate.js",
+    "build:extension": "cd checkout-extension && npm run build",
+    "zip:extension": "cd checkout-extension && npm run zip",
+    "dev:extension": "shoplazza checkout dev --id cd-insure-item-protection",
+    "inject:extension-url": "node scripts/inject-extension-app-url.js",
+    "deploy:extension": "npm run inject:extension-url && npm run build:extension && shoplazza checkout deploy",
+    "build:cart-transform-wasm": "node scripts/build-cart-transform-wasm.mjs"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "^7.4.0",
+    "@prisma/client": "^6.19.2",
+    "next": "16.1.6",
+    "pg": "^8.13.0",
+    "prisma": "^6.19.2",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "shoplazza-extension-ui": "^1.0.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.1.6",
+    "selfsigned": "^5.5.0",
+    "sharp": "^0.34.5",
+    "tailwindcss": "^4",
+    "typescript": "^5"
+  }
+}
