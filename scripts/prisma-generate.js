@@ -1,39 +1,29 @@
 #!/usr/bin/env node
 /**
- * Run prisma generate with the correct schema:
- * - If DATABASE_URL looks like Postgres (postgres://, postgresql://, prisma+postgres://) → use schema.postgres.prisma
- * - Otherwise (e.g. file:./dev.db for SQLite, or unset) → use schema.prisma (local testing)
- * On Vercel, postinstall runs before env vars are available; we pass a fallback so generate doesn't fail.
- * The real build step runs this again with DATABASE_URL set, so the correct client is generated.
+ * Generate Prisma client with the correct schema.
+ * Uses schema.postgres.prisma for PostgreSQL, schema.prisma for SQLite.
  */
-const path = require("path");
 const { execSync } = require("child_process");
 
 const dbUrl = process.env.DATABASE_URL || "file:./dev.db";
-
-console.log("[prisma-generate] DATABASE_URL provided:", !!process.env.DATABASE_URL);
-console.log("[prisma-generate] Using fallback:", !process.env.DATABASE_URL ? "Yes (file:./dev.db)" : "No");
-
-const usePostgres =
+const isPostgres = 
   dbUrl.startsWith("postgres://") ||
   dbUrl.startsWith("postgresql://") ||
   dbUrl.startsWith("prisma+postgres://");
 
-const schemaFile = usePostgres ? "schema.postgres.prisma" : "schema.prisma";
-const schemaPath = path.join(__dirname, "..", "prisma", schemaFile);
+const schema = isPostgres ? "schema.postgres.prisma" : "schema.prisma";
 
-console.log("[prisma-generate] Using schema:", schemaFile);
-console.log("[prisma-generate] Schema path:", schemaPath);
+console.log("[prisma-generate] DATABASE_URL:", dbUrl ? "SET" : "using fallback file:./dev.db");
+console.log("[prisma-generate] Schema:", schema);
 
 try {
-  execSync(`npx prisma generate --schema=${schemaPath}`, {
+  execSync(`npx prisma generate --schema=./prisma/${schema}`, {
     stdio: "inherit",
-    cwd: path.join(__dirname, ".."),
     env: { ...process.env, DATABASE_URL: process.env.DATABASE_URL || "file:./dev.db" },
   });
-  console.log("[prisma-generate] ✓ Prisma client generated successfully");
-} catch (error) {
-  console.error("[prisma-generate] ✗ Failed to generate Prisma client");
-  console.error("[prisma-generate] Error:", error.message);
+  console.log("[prisma-generate] SUCCESS");
+} catch (err) {
+  console.error("[prisma-generate] FAILED");
+  console.error(err.message);
   process.exit(1);
 }
