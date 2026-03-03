@@ -29,6 +29,13 @@ export async function GET(request: NextRequest) {
     // Fetch current location from Shoplazza API (real-time)
     const storeInfo = await getStoreInfoFromShoplazza(shop, store.accessToken);
 
+    console.log("[store-location] Fetched store info:", {
+      shop,
+      country_code: storeInfo.country_code,
+      country_name: storeInfo.country_name,
+      full_response: storeInfo,
+    });
+
     return NextResponse.json({
       country_code: storeInfo.country_code || null,
       country_name: storeInfo.country_name || null,

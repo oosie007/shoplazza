@@ -85,7 +85,14 @@ export async function getStoreInfoFromShoplazza(
 
     const data = await response.json();
     const shopData = data.data || data;
-    
+
+    console.log("[getStoreInfoFromShoplazza] API response:", {
+      shop,
+      raw_data: JSON.stringify(shopData).substring(0, 500),
+      country_code: shopData.country_code || shopData.location?.country_code,
+      country_name: shopData.country || shopData.location?.country_name,
+    });
+
     return {
       country_code: shopData.country_code || shopData.location?.country_code,
       country_name: shopData.country || shopData.location?.country_name,

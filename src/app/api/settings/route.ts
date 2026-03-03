@@ -49,7 +49,6 @@ export async function GET(request: NextRequest) {
     claimPortalConfigured: s.claimPortalConfigured,
     itemProtectionProductId: s.itemProtectionProductId ?? undefined,
     itemProtectionVariantId: s.itemProtectionVariantId ?? undefined,
-    widgetInjectionPoint: s.widgetInjectionPoint ?? "checkout",
   });
 }
 
@@ -110,7 +109,6 @@ export async function PATCH(request: NextRequest) {
     "claimPortalConfigured",
     "itemProtectionProductId",
     "itemProtectionVariantId",
-    "widgetInjectionPoint",
   ] as const;
   for (const key of allowed) {
     if (body[key] === undefined) continue;
@@ -122,6 +120,7 @@ export async function PATCH(request: NextRequest) {
     } else {
       upd[key] = body[key];
     }
+  }
 
   const { prisma } = await import("@/lib/db");
   const updated = (await prisma.storeSettings.update({
@@ -156,18 +155,5 @@ export async function PATCH(request: NextRequest) {
     claimPortalConfigured: updated.claimPortalConfigured,
     itemProtectionProductId: updated.itemProtectionProductId ?? undefined,
     itemProtectionVariantId: updated.itemProtectionVariantId ?? undefined,
-    widgetInjectionPoint: updated.widgetInjectionPoint ?? "checkout",
-    location_valid: updated.location_valid,
-    store_country_code: store.country_code || "",
-    store_country_name: store.country_name || "",
-    supported_shipping_countries: (() => {
-      try {
-        return typeof updated.supported_shipping_countries === "string" && updated.supported_shipping_countries.length
-          ? JSON.parse(updated.supported_shipping_countries)
-          : [];
-      } catch {
-        return [];
-      }
-    })(),
   });
 }
