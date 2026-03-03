@@ -34,16 +34,16 @@ if (!isPostgres) {
   process.exit(0);
 }
 
-console.log("[prisma-migrate-deploy] Running: npx prisma db push --schema=./prisma/schema.postgres.prisma");
+console.log("[prisma-migrate-deploy] Running: npx prisma db push --skip-generate --accept-data-loss --schema=./prisma/schema.postgres.prisma");
 console.log("[prisma-migrate-deploy] Working directory:", process.cwd());
 
 try {
   console.log("[prisma-migrate-deploy] ===================================");
   console.log("[prisma-migrate-deploy] Executing: npx prisma db push");
-  console.log("[prisma-migrate-deploy] With flags: --skip-generate --schema=./prisma/schema.postgres.prisma");
+  console.log("[prisma-migrate-deploy] With flags: --skip-generate --accept-data-loss --schema=./prisma/schema.postgres.prisma");
   console.log("[prisma-migrate-deploy] ===================================");
 
-  execSync("npx prisma db push --skip-generate --schema=./prisma/schema.postgres.prisma", {
+  execSync("npx prisma db push --skip-generate --accept-data-loss --schema=./prisma/schema.postgres.prisma", {
     stdio: "inherit",
     cwd: process.cwd(),
   });
