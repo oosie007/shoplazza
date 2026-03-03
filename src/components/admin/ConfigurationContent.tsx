@@ -407,6 +407,19 @@ export function ConfigurationContent() {
             </label>
           </section>
 
+          {/* Widget placement */}
+          <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
+            <h2 className="text-lg font-medium text-zinc-900">Widget placement</h2>
+            <p className="mt-0.5 text-sm text-zinc-600">
+              The widget is configured to display on the checkout page.
+            </p>
+            <div className="mt-4 rounded-md bg-blue-50 p-3 border border-blue-200">
+              <p className="text-sm font-medium text-blue-900">Checkout page</p>
+              <p className="text-xs text-blue-700 mt-1">
+                Widget appears during purchase. Customer may need to reload page to see updated total.
+              </p>
+            </div>
+          </section>
           {/* Cart totals */}
           <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
             <h2 className="text-lg font-medium text-zinc-900">Cart totals integration</h2>
