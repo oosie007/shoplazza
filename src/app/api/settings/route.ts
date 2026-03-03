@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getStoreByShop } from "@/lib/shoplazza/store";
 import { shopParamSchema } from "@/lib/validation/schemas";
+import { getWidgetInjectionPoint, saveWidgetInjectionPoint } from "@/lib/config/widget-store";
 
 /**
  * GET /api/settings?shop=...
@@ -33,6 +34,10 @@ export async function GET(request: NextRequest) {
     typeof s.excludedCategoryIds === "string" && s.excludedCategoryIds.length
       ? JSON.parse(s.excludedCategoryIds)
       : [];
+
+  // Get widget injection point from JSON file
+  const widgetInjectionPoint = getWidgetInjectionPoint(shop);
+
   return NextResponse.json({
     activated: s.activated,
     revenueShareTier: s.revenueShareTier,
@@ -49,19 +54,7 @@ export async function GET(request: NextRequest) {
     claimPortalConfigured: s.claimPortalConfigured,
     itemProtectionProductId: s.itemProtectionProductId ?? undefined,
     itemProtectionVariantId: s.itemProtectionVariantId ?? undefined,
-    widgetInjectionPoint: s.widgetInjectionPoint ?? "checkout",
-    location_valid: s.location_valid,
-    store_country_code: store.country_code || "",
-    store_country_name: store.country_name || "",
-    supported_shipping_countries: (() => {
-      try {
-        return typeof s.supported_shipping_countries === "string" && s.supported_shipping_countries.length
-          ? JSON.parse(s.supported_shipping_countries)
-          : [];
-      } catch {
-        return [];
-      }
-    })(),
+    widgetInjectionPoint,
   });
 }
 
@@ -123,15 +116,20 @@ export async function PATCH(request: NextRequest) {
     "itemProtectionProductId",
     "itemProtectionVariantId",
     "widgetInjectionPoint",
-    "supported_shipping_countries",
   ] as const;
   for (const key of allowed) {
     if (body[key] === undefined) continue;
-    if (key === "categoryPercents" || key === "excludedCategoryIds" || key === "supported_shipping_countries") {
+    if (key === "categoryPercents" || key === "excludedCategoryIds") {
       upd[key] = JSON.stringify(body[key]);
     } else if (key === "itemProtectionProductId" || key === "itemProtectionVariantId") {
       const v = body[key];
       upd[key] = v === "" || v == null ? null : v;
+    } else if (key === "widgetInjectionPoint") {
+      // Handle widget injection point - save to JSON file instead of database
+      const v = body[key];
+      if (v) {
+        saveWidgetInjectionPoint(shop, v as any);
+      }
     } else {
       upd[key] = body[key];
     }
@@ -154,6 +152,9 @@ export async function PATCH(request: NextRequest) {
       ? JSON.parse(updated.excludedCategoryIds)
       : [];
 
+  // Get updated widget injection point from JSON file
+  const updatedWidgetInjectionPoint = getWidgetInjectionPoint(shop);
+
   return NextResponse.json({
     activated: updated.activated,
     revenueShareTier: updated.revenueShareTier,
@@ -170,18 +171,6 @@ export async function PATCH(request: NextRequest) {
     claimPortalConfigured: updated.claimPortalConfigured,
     itemProtectionProductId: updated.itemProtectionProductId ?? undefined,
     itemProtectionVariantId: updated.itemProtectionVariantId ?? undefined,
-    widgetInjectionPoint: updated.widgetInjectionPoint ?? "checkout",
-    location_valid: updated.location_valid,
-    store_country_code: store.country_code || "",
-    store_country_name: store.country_name || "",
-    supported_shipping_countries: (() => {
-      try {
-        return typeof updated.supported_shipping_countries === "string" && updated.supported_shipping_countries.length
-          ? JSON.parse(updated.supported_shipping_countries)
-          : [];
-      } catch {
-        return [];
-      }
-    })(),
+    widgetInjectionPoint: updatedWidgetInjectionPoint,
   });
 }

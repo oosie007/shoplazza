@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getStoreByShop } from "@/lib/shoplazza/store";
 import { shopParamSchema } from "@/lib/validation/schemas";
+import { getWidgetInjectionPoint } from "@/lib/config/widget-store";
 
 /**
  * GET /api/public-settings?shop=...
@@ -61,6 +62,9 @@ export async function GET(request: NextRequest) {
       ? JSON.parse(settings.excludedCategoryIds)
       : [];
 
+  // Get widget injection point from JSON file
+  const widgetInjectionPoint = getWidgetInjectionPoint(shop);
+
   return withCors(NextResponse.json({
     activated: settings.activated,
     pricingMode: settings.pricingMode,
@@ -73,19 +77,7 @@ export async function GET(request: NextRequest) {
     defaultAtCheckout: settings.defaultAtCheckout,
     itemProtectionProductId: settings.itemProtectionProductId ?? undefined,
     itemProtectionVariantId: settings.itemProtectionVariantId ?? undefined,
-    widgetInjectionPoint: settings.widgetInjectionPoint ?? "checkout",
-    supported_shipping_countries: (() => {
-      try {
-        return typeof settings.supported_shipping_countries === "string" && settings.supported_shipping_countries.length
-          ? JSON.parse(settings.supported_shipping_countries)
-          : [];
-      } catch {
-        return [];
-      }
-    })(),
-    location_valid: settings.location_valid,
-    store_country_code: store.country_code || "",
-    store_country_name: store.country_name || "",
+    widgetInjectionPoint,
   }));
 }
 

@@ -19,10 +19,6 @@ model Store {
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
-  // Store location (set during install, immutable)
-  country_code    String   @default("") // ISO 3166-1 alpha-2 (GB, FR, CH, NL)
-  country_name    String   @default("") // Full country name
-
   settings    StoreSettings?
 }
 
@@ -51,13 +47,6 @@ model StoreSettings {
   // Cart API: add Item Protection as a line item (product) when toggle ON. Optional.
   itemProtectionProductId String?
   itemProtectionVariantId  String?
-  // Widget injection point: where the widget is injected ("checkout" = checkout page, "cart" = cart page)
-  widgetInjectionPoint  String   @default("checkout")
-  // Location validation: is store in supported country? (GB, FR, CH, NL)
-  location_valid        Boolean  @default(false)
-  // Supported shipping countries for Item Protection
-  // Example: "[\"GB\",\"FR\",\"CH\",\"NL\"]"
-  supported_shipping_countries String @default("[]") // JSON string: string[] of ISO country codes
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 
