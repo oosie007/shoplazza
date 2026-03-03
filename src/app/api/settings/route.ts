@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
     typeof s.excludedCategoryIds === "string" && s.excludedCategoryIds.length
       ? JSON.parse(s.excludedCategoryIds)
       : [];
-  
+
   // Get widget injection point from JSON file
   const widgetInjectionPoint = getWidgetInjectionPoint(shop);
 
@@ -129,6 +129,7 @@ export async function PATCH(request: NextRequest) {
     "claimPortalConfigured",
     "itemProtectionProductId",
     "itemProtectionVariantId",
+    "widgetInjectionPoint",
   ] as const;
   for (const key of allowed) {
     if (body[key] === undefined) continue;
@@ -137,6 +138,12 @@ export async function PATCH(request: NextRequest) {
     } else if (key === "itemProtectionProductId" || key === "itemProtectionVariantId") {
       const v = body[key];
       upd[key] = v === "" || v == null ? null : v;
+    } else if (key === "widgetInjectionPoint") {
+      // Handle widget injection point - save to JSON file instead of database
+      const v = body[key];
+      if (v) {
+        saveWidgetInjectionPoint(shop, v as any);
+      }
     } else {
       upd[key] = body[key];
     }
@@ -161,6 +168,8 @@ export async function PATCH(request: NextRequest) {
 
   // Get widget injection point from JSON file
   const widgetInjectionPoint = getWidgetInjectionPoint(shop);
+  // Get updated widget injection point from JSON file
+  const updatedWidgetInjectionPoint = getWidgetInjectionPoint(shop);
 
   return NextResponse.json({
     activated: updated.activated,
@@ -179,5 +188,6 @@ export async function PATCH(request: NextRequest) {
     itemProtectionProductId: updated.itemProtectionProductId ?? undefined,
     itemProtectionVariantId: updated.itemProtectionVariantId ?? undefined,
     widgetInjectionPoint,
+    widgetInjectionPoint: updatedWidgetInjectionPoint,
   });
 }
