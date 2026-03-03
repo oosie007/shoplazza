@@ -74,9 +74,9 @@ export async function GET(request: NextRequest) {
     //   );
     // }
 
-    // Save installation (location validation complete, no need to store location in DB anymore)
+    // Save installation (location validation disabled - all countries allowed)
     await saveInstallation(shop, access_token);
-    console.log(`[auth/callback] Store saved (location already validated: ${countryCode})`);
+    console.log(`[auth/callback] Store saved`);
 
     // Create "Item Protection" product and bind Cart Transform (one product per store; no merchant action)
     try {

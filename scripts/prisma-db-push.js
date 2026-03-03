@@ -1,9 +1,8 @@
 #!/usr/bin/env node
 /**
- * Generate Prisma client with the correct schema.
- * Uses schema.postgres.prisma for PostgreSQL, schema.prisma for SQLite.
- *
- * This wrapper loads .env.local before calling Prisma to ensure DATABASE_URL is set.
+ * Push Prisma schema to database.
+ * For PostgreSQL (Vercel), uses db push.
+ * For SQLite (local dev), uses db push.
  */
 const fs = require("fs");
 const path = require("path");
@@ -35,24 +34,24 @@ const isPostgres =
 
 const schema = isPostgres ? "schema.postgres.prisma" : "schema.prisma";
 
-console.log("[prisma-generate] DATABASE_URL:", dbUrl ? "SET" : "using fallback file:./dev.db");
-console.log("[prisma-generate] Schema:", schema);
+console.log("[prisma-db-push] DATABASE_URL:", dbUrl ? "SET" : "using fallback file:./dev.db");
+console.log("[prisma-db-push] Schema:", schema);
 
 try {
   const prismaPath = path.join(projectRoot, "node_modules", ".bin", "prisma");
 
-  console.log(`[prisma-generate] Running: prisma generate --schema=./prisma/${schema}`);
+  console.log(`[prisma-db-push] Running: prisma db push --skip-generate --accept-data-loss --schema=./prisma/${schema}`);
 
   // Call prisma via bash since it's a shell script
-  execFileSync("bash", [prismaPath, "generate", `--schema=./prisma/${schema}`], {
+  execFileSync("bash", [prismaPath, "db", "push", "--skip-generate", "--accept-data-loss", `--schema=./prisma/${schema}`], {
     stdio: "inherit",
     cwd: projectRoot,
     env: process.env,
   });
 
-  console.log("[prisma-generate] SUCCESS");
+  console.log("[prisma-db-push] SUCCESS");
 } catch (err) {
-  console.error("[prisma-generate] FAILED");
+  console.error("[prisma-db-push] FAILED");
   console.error(err.message);
   process.exit(1);
 }
