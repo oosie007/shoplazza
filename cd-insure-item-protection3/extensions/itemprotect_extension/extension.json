@@ -1,10 +1,10 @@
 {
-  "version": "1.0.9",
+  "version": "1.0.0",
   "deleteTarget": [],
   "placeholder": {},
   "templateName": "checkout",
   "themeName": "",
-  "extensionId": "be05c313-0e90-4e0a-8cd6-d01fc3017ee7",
+  "extensionId": "17e82806-d196-4fb4-866f-f6665b436b12",
   "extensionName": "itemprotect_extension",
-  "extensionDescription": ""
+  "extensionDescription": "Chubb itemprotect extension"
 }
