@@ -1,55 +1,43 @@
 #!/usr/bin/env node
 /**
- * Sync Prisma schema to database.
- * Uses schema.postgres.prisma for Postgres (e.g. Vercel).
- * No-op when DATABASE_URL is SQLite or unset (local dev).
- *
- * IMPORTANT: Only uses 'db push', NEVER 'migrate deploy'.
- * This avoids migration history table issues and keeps PostgreSQL schema clean.
+ * Sync Prisma schema to database using 'db push' ONLY.
+ * For PostgreSQL (Vercel), syncs schema.postgres.prisma directly.
+ * For SQLite (local dev), skips this entirely.
+ * 
+ * NEVER uses 'migrate deploy' - only 'db push' for schema sync.
  */
 const path = require("path");
 const { execSync } = require("child_process");
 
 const dbUrl = process.env.DATABASE_URL || "";
 
-console.log("[prisma-migrate-deploy] Environment check:");
-console.log("[prisma-migrate-deploy] DATABASE_URL is", dbUrl ? "set" : "NOT SET");
-if (dbUrl) {
-  console.log("[prisma-migrate-deploy] DATABASE_URL starts with:", dbUrl.substring(0, 20) + (dbUrl.length > 20 ? "..." : ""));
-}
+console.log("[prisma-migrate-deploy] START");
+console.log("[prisma-migrate-deploy] DATABASE_URL:", dbUrl ? "SET" : "NOT SET");
 
-const usePostgres =
+// Only run for PostgreSQL (Vercel)
+const isPostgres = 
   dbUrl.startsWith("postgres://") ||
   dbUrl.startsWith("postgresql://") ||
   dbUrl.startsWith("prisma+postgres://");
 
-console.log("[prisma-migrate-deploy] usePostgres:", usePostgres);
+console.log("[prisma-migrate-deploy] isPostgres:", isPostgres);
 
-if (!usePostgres) {
-  console.log("[prisma-migrate-deploy] Skipping (not Postgres)");
+if (!isPostgres) {
+  console.log("[prisma-migrate-deploy] Skipping - not PostgreSQL");
   process.exit(0);
 }
 
-const schemaPath = path.join(__dirname, "..", "prisma", "schema.postgres.prisma");
-const cwd = path.join(__dirname, "..");
-
-console.log("[prisma-migrate-deploy] Schema path:", schemaPath);
-console.log("[prisma-migrate-deploy] Working directory:", cwd);
-console.log("[prisma-migrate-deploy] Running prisma db push (ONLY method, no migrate deploy fallback)...");
+console.log("[prisma-migrate-deploy] Running: npx prisma db push");
 
 try {
-  execSync(`npx prisma db push --skip-generate --schema=${schemaPath}`, {
+  execSync("npx prisma db push --schema=./prisma/schema.postgres.prisma", {
     stdio: "inherit",
-    cwd: cwd,
-    env: process.env,
+    cwd: process.cwd(),
   });
-  console.log("[prisma-migrate-deploy] ✓ db push succeeded");
+  console.log("[prisma-migrate-deploy] SUCCESS - db push completed");
   process.exit(0);
-} catch (error) {
-  console.error("[prisma-migrate-deploy] ✗ db push failed with error:");
-  console.error("[prisma-migrate-deploy] Error code:", error.code);
-  console.error("[prisma-migrate-deploy] Error status:", error.status);
-  console.error("[prisma-migrate-deploy] Error message:", error.message);
-  console.error("[prisma-migrate-deploy] ABORTING - NOT using migrate deploy fallback (only db push allowed)");
+} catch (err) {
+  console.error("[prisma-migrate-deploy] FAILED - db push error");
+  console.error(err.message);
   process.exit(1);
 }
