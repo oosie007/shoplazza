@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { isSupportedCountry, getCountryName } from "@/lib/config/countries";
 
 /** Normalize shop to hostname (e.g. oostest.myshoplaza.com) so lookup works regardless of protocol/path. */
 export function normalizeShopDomain(shop: string): string {
@@ -57,16 +58,6 @@ export async function getAllShops(): Promise<string[]> {
   return rows.map((r) => r.shopDomain);
 }
 
-// Supported countries for Item Protection
-export const SUPPORTED_COUNTRIES = {
-  GB: { code: "GB", name: "United Kingdom" },
-  FR: { code: "FR", name: "France" },
-  CH: { code: "CH", name: "Switzerland" },
-  NL: { code: "NL", name: "Netherlands" },
-} as const;
-
-export type CountryCode = keyof typeof SUPPORTED_COUNTRIES;
-
 /**
  * Fetch store info from Shoplazza API
  * Returns basic store information including country/location
@@ -107,18 +98,5 @@ export async function getStoreInfoFromShoplazza(
   }
 }
 
-/**
- * Validate if store's country is supported
- */
-export function isSupportedCountry(countryCode?: string): countryCode is CountryCode {
-  if (!countryCode) return false;
-  return countryCode in SUPPORTED_COUNTRIES;
-}
-
-/**
- * Get readable country name from code
- */
-export function getCountryName(countryCode: string): string {
-  const country = SUPPORTED_COUNTRIES[countryCode as CountryCode];
-  return country ? country.name : countryCode;
-}
+// Re-export validation functions from config (for backward compatibility)
+export { isSupportedCountry, getCountryName };

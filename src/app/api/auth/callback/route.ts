@@ -49,7 +49,6 @@ export async function GET(request: NextRequest) {
       getStoreByShop,
       getStoreInfoFromShoplazza,
       isSupportedCountry,
-      getCountryName,
     } = await import("@/lib/shoplazza/store");
 
     // Fetch store info to validate location
@@ -76,33 +75,9 @@ export async function GET(request: NextRequest) {
 
     console.log(`[auth/callback] Location validated: ${countryCode} (${storeInfo.country_name})`);
 
-    // Save installation with location info
+    // Save installation (location validation complete, no need to store location in DB anymore)
     await saveInstallation(shop, access_token);
-
-    // Update store with location information
-    const { prisma } = await import("@/lib/db");
-    const store = await getStoreByShop(shop);
-    if (store) {
-      await prisma.store.update({
-        where: { id: store.id },
-        data: {
-          country_code: countryCode || "",
-          country_name: storeInfo.country_name || getCountryName(countryCode || ""),
-        },
-      });
-
-      // Update settings: location is valid
-      if (store.settings) {
-        await prisma.storeSettings.update({
-          where: { id: store.settings.id },
-          data: {
-            location_valid: true,
-          },
-        });
-      }
-
-      console.log(`[auth/callback] Store saved with location: ${countryCode}`);
-    }
+    console.log(`[auth/callback] Store saved (location already validated: ${countryCode})`);
 
     // Create "Item Protection" product and bind Cart Transform (one product per store; no merchant action)
     try {

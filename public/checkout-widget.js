@@ -173,34 +173,28 @@
   }
 
   /**
-   * Check if the shipping address country is in merchant's supported list.
-   * If supported_shipping_countries is empty, allow all countries.
-   * Otherwise, check if the address country_code is in the list.
+   * Check if the shipping address country is supported (GB, FR, CH, NL only).
+   * These are the only countries where Item Protection is available.
    */
   function isShippingCountrySupported() {
-    if (!settings) return true; // If no settings, allow shipping
-    
-    const supported = settings.supported_shipping_countries || [];
-    if (!Array.isArray(supported) || supported.length === 0) {
-      // Empty list = all countries allowed
-      return true;
-    }
+    // Static list: only these countries are allowed for Item Protection
+    const ALLOWED_SHIPPING = ["GB", "FR", "CH", "NL"];
 
     // Get shipping address country code
-    const address = hasCheckoutAPI && CheckoutAPI.address && CheckoutAPI.address.getShippingAddress 
-      ? CheckoutAPI.address.getShippingAddress() 
+    const address = hasCheckoutAPI && CheckoutAPI.address && CheckoutAPI.address.getShippingAddress
+      ? CheckoutAPI.address.getShippingAddress()
       : null;
-    
+
     if (!address) {
       // No address yet (e.g., contact information step)
-      // Don't disable based on shipping - address not selected yet
+      // Do not disable based on shipping - address not selected yet
       return true;
     }
 
     const countryCode = address.countryCode || address.country_code || "";
-    const isSupported = supported.includes(countryCode);
-    
-    debugLog("Shipping country check: " + countryCode + " in " + JSON.stringify(supported) + " = " + isSupported);
+    const isSupported = ALLOWED_SHIPPING.includes(countryCode);
+
+    debugLog("Shipping country check: " + countryCode + " (allowed: GB/FR/CH/NL) = " + isSupported);
     return isSupported;
   }
 

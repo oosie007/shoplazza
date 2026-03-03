@@ -50,18 +50,6 @@ export async function GET(request: NextRequest) {
     itemProtectionProductId: s.itemProtectionProductId ?? undefined,
     itemProtectionVariantId: s.itemProtectionVariantId ?? undefined,
     widgetInjectionPoint: s.widgetInjectionPoint ?? "checkout",
-    location_valid: s.location_valid,
-    store_country_code: store.country_code || "",
-    store_country_name: store.country_name || "",
-    supported_shipping_countries: (() => {
-      try {
-        return typeof s.supported_shipping_countries === "string" && s.supported_shipping_countries.length
-          ? JSON.parse(s.supported_shipping_countries)
-          : [];
-      } catch {
-        return [];
-      }
-    })(),
   });
 }
 
@@ -123,11 +111,10 @@ export async function PATCH(request: NextRequest) {
     "itemProtectionProductId",
     "itemProtectionVariantId",
     "widgetInjectionPoint",
-    "supported_shipping_countries",
   ] as const;
   for (const key of allowed) {
     if (body[key] === undefined) continue;
-    if (key === "categoryPercents" || key === "excludedCategoryIds" || key === "supported_shipping_countries") {
+    if (key === "categoryPercents" || key === "excludedCategoryIds") {
       upd[key] = JSON.stringify(body[key]);
     } else if (key === "itemProtectionProductId" || key === "itemProtectionVariantId") {
       const v = body[key];
@@ -135,7 +122,6 @@ export async function PATCH(request: NextRequest) {
     } else {
       upd[key] = body[key];
     }
-  }
 
   const { prisma } = await import("@/lib/db");
   const updated = (await prisma.storeSettings.update({
