@@ -37,6 +37,8 @@ yarn-error.log*
 
 # local store data (contains tokens)
 /data/
+# widget configuration (generated at runtime)
+/.widget-config/
 
 # local sqlite db
 /dev.db
