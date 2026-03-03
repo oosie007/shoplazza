@@ -51,6 +51,9 @@ model StoreSettings {
   // Cart API: add Item Protection as a line item (product) when toggle ON. Optional.
   itemProtectionProductId String?
   itemProtectionVariantId  String?
+  // Allowed countries for shipping (JSON array: ["GB", "FR", "CH", "NL"])
+  // This is sent to the checkout widget to validate customer shipping addresses
+  allowedCountries      String   @default("[\"GB\",\"FR\",\"CH\",\"NL\"]") // JSON string: string[]
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 

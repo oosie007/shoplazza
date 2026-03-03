@@ -61,6 +61,10 @@ export async function GET(request: NextRequest) {
     typeof settings.excludedCategoryIds === "string" && settings.excludedCategoryIds.length
       ? JSON.parse(settings.excludedCategoryIds)
       : [];
+  const allowedCountries =
+    typeof settings.allowedCountries === "string" && settings.allowedCountries.length
+      ? JSON.parse(settings.allowedCountries)
+      : ["GB", "FR", "CH", "NL"];
 
   // Get widget injection point from JSON file
   const widgetInjectionPoint = getWidgetInjectionPoint(shop);
@@ -71,6 +75,7 @@ export async function GET(request: NextRequest) {
     fixedPercentAll: settings.fixedPercentAll,
     categoryPercents,
     excludedCategoryIds,
+    allowedCountries,
     widgetVariant: settings.widgetVariant,
     enablePoweredByChubb: settings.enablePoweredByChubb,
     offerAtCheckout: settings.offerAtCheckout,
