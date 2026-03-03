@@ -1,5 +1,9 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
+//
+// IMPORTANT: This project uses 'db push' (schema sync) NOT 'prisma migrate'.
+// Do not use 'prisma migrate deploy' or 'prisma migrate dev'.
+// See scripts/prisma-migrate-deploy.js for the deployment flow.
 
 generator client {
   provider = "prisma-client"

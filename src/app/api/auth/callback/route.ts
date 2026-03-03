@@ -47,37 +47,36 @@ export async function GET(request: NextRequest) {
     const {
       saveInstallation,
       getStoreByShop,
-      getStoreInfoFromShoplazza,
-      isSupportedCountry,
+      // Location validation disabled
+      // getStoreInfoFromShoplazza,
+      // isSupportedCountry,
     } = await import("@/lib/shoplazza/store");
 
-    // Fetch store info to validate location
-    console.log("[auth/callback] Fetching store info for location validation");
-    const storeInfo = await getStoreInfoFromShoplazza(shop, access_token);
-    const countryCode = storeInfo.country_code?.toUpperCase();
-    console.log(`[auth/callback] Store country code: ${countryCode}, name: ${storeInfo.country_name}`);
+    // Location validation disabled - allow all countries
+    console.log("[auth/callback] Location validation disabled - proceeding with all countries");
+    // const storeInfo = await getStoreInfoFromShoplazza(shop, access_token);
+    // const countryCode = storeInfo.country_code?.toUpperCase();
+    // console.log(`[auth/callback] Store country code: ${countryCode}, name: ${storeInfo.country_name}`);
     // Check if country is supported
-    if (!isSupportedCountry(countryCode)) {
-      console.warn(
-        `[auth/callback] Store in unsupported country: ${countryCode} (${storeInfo.country_name})`
-      );
-      return NextResponse.json(
-        {
-          error: "Item Protection is not available in your country",
-          supportedCountries: ["UK", "France", "Switzerland", "Netherlands"],
-          storeCountry: storeInfo.country_name || "Unknown",
-          message:
-            "Item Protection is currently only available for merchants in the United Kingdom, France, Switzerland, and Netherlands.",
-        },
-        { status: 403 }
-      );
-    }
+    // if (!isSupportedCountry(countryCode)) {
+    //   console.warn(
+    //     `[auth/callback] Store in unsupported country: ${countryCode} (${storeInfo.country_name})`
+    //   );
+    //   return NextResponse.json(
+    //     {
+    //       error: "Item Protection is not available in your country",
+    //       supportedCountries: ["UK", "France", "Switzerland", "Netherlands"],
+    //       storeCountry: storeInfo.country_name || "Unknown",
+    //       message:
+    //         "Item Protection is currently only available for merchants in the United Kingdom, France, Switzerland, and Netherlands.",
+    //     },
+    //     { status: 403 }
+    //   );
+    // }
 
-    console.log(`[auth/callback] Location validated: ${countryCode} (${storeInfo.country_name})`);
-
-    // Save installation (location validation complete, no need to store location in DB anymore)
+    // Save installation (location validation disabled - all countries allowed)
     await saveInstallation(shop, access_token);
-    console.log(`[auth/callback] Store saved (location already validated: ${countryCode})`);
+    console.log(`[auth/callback] Store saved`);
 
     // Create "Item Protection" product and bind Cart Transform (one product per store; no merchant action)
     try {

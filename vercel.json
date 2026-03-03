@@ -1,0 +1,7 @@
+{
+  "buildCommand": "node scripts/prisma-generate.js && node scripts/prisma-migrate-deploy.js && next build",
+  "installCommand": "npm ci",
+  "env": {
+    "SKIP_ENV_VALIDATION": "true"
+  }
+}

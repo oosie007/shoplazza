@@ -7,6 +7,7 @@
 const { spawn } = require("child_process");
 const path = require("path");
 
+
 const projectDir = path.resolve(__dirname, "..", process.argv[2] || ".");
 const inputs = [
   "cd-insure-item-protection",           // project name
