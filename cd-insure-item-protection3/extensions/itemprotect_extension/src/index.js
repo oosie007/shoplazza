@@ -1,6 +1,6 @@
 import { extend } from 'shoplazza-extension-ui';
 
-// App URL where checkout-widget.js is served.
+    // App URL where checkout-widget.js is served.
 const APP_URL = 'https://shoplazza-nu.vercel.app';
 
 const widgetHtml =
