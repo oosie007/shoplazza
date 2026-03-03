@@ -176,23 +176,20 @@
 
   /**
    * Check if the shipping address country is supported.
-   * DISABLED: Allow all countries (no shipping restrictions).
+   * Uses allowed countries from backend settings (via API).
    */
   function isShippingCountrySupported() {
-    // Country validation disabled - allow all countries
-    debugLog("Shipping country check: disabled - allowing all countries");
-    return true;
+    // Get allowed countries from settings retrieved from backend API
+    var allowedCountries = (settings && settings.allowedCountries) ? settings.allowedCountries : [];
 
-    // Original code (disabled):
-    // const ALLOWED_SHIPPING = ["GB", "FR", "CH", "NL"];
-    // const address = hasCheckoutAPI && CheckoutAPI.address && CheckoutAPI.address.getShippingAddress
-    //   ? CheckoutAPI.address.getShippingAddress()
-    //   : null;
-    // if (!address) return true;
-    // const countryCode = address.countryCode || address.country_code || "";
-    // const isSupported = ALLOWED_SHIPPING.includes(countryCode);
-    // debugLog("Shipping country check: " + countryCode + " (allowed: GB/FR/CH/NL) = " + isSupported);
-    // return isSupported;
+    var address = hasCheckoutAPI && CheckoutAPI.address && CheckoutAPI.address.getShippingAddress
+      ? CheckoutAPI.address.getShippingAddress()
+      : null;
+    if (!address) return true;
+    var countryCode = address.countryCode || address.country_code || "";
+    var isSupported = allowedCountries.indexOf(countryCode) >= 0;
+    debugLog("Shipping country check: " + countryCode + " (allowed: " + allowedCountries.join(",") + ") = " + isSupported);
+    return isSupported;
   }
 
   /**

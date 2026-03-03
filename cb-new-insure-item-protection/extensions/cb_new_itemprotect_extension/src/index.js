@@ -1,7 +1,7 @@
 import { extend } from 'shoplazza-extension-ui';
 
     // App URL where checkout-widget.js is served.
-const APP_URL = 'https://impugnable-noncrucially-adelia.ngrok-free.dev';
+const APP_URL = 'https://shoplazza-pearl.vercel.app';
 
 const widgetHtml =
   '<div id="cd-insure-widget-root" data-extension="itemprotect" style="margin-top:16px"></div>' +
