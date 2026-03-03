@@ -7,7 +7,7 @@
  */
 const fs = require("fs");
 const path = require("path");
-const { execFileSync } = require("child_process");
+const { spawn } = require("child_process");
 
 const projectRoot = path.join(__dirname, "..");
 const envPath = path.join(projectRoot, ".env.local");
@@ -39,18 +39,32 @@ console.log("[prisma-generate] DATABASE_URL:", dbUrl ? "SET" : "using fallback f
 console.log("[prisma-generate] Schema:", schema);
 
 try {
-  const prismaPath = path.join(projectRoot, "node_modules", ".bin", "prisma");
+  // Use the prisma CLI directly via node
+  const prismaCliPath = path.join(projectRoot, "node_modules", "prisma", "build", "index.js");
 
   console.log(`[prisma-generate] Running: prisma generate --schema=./prisma/${schema}`);
 
-  // Call prisma via bash since it's a shell script
-  execFileSync("bash", [prismaPath, "generate", `--schema=./prisma/${schema}`], {
+  const prisma = spawn("node", [prismaCliPath, "generate", `--schema=./prisma/${schema}`], {
     stdio: "inherit",
     cwd: projectRoot,
     env: process.env,
   });
 
-  console.log("[prisma-generate] SUCCESS");
+  prisma.on("exit", (code) => {
+    if (code === 0) {
+      console.log("[prisma-generate] SUCCESS");
+      process.exit(0);
+    } else {
+      console.error("[prisma-generate] FAILED");
+      process.exit(code || 1);
+    }
+  });
+
+  prisma.on("error", (err) => {
+    console.error("[prisma-generate] FAILED");
+    console.error(err.message);
+    process.exit(1);
+  });
 } catch (err) {
   console.error("[prisma-generate] FAILED");
   console.error(err.message);
