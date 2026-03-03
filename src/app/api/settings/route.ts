@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getStoreByShop } from "@/lib/shoplazza/store";
 import { shopParamSchema } from "@/lib/validation/schemas";
+import { getWidgetInjectionPoint, saveWidgetInjectionPoint } from "@/lib/config/widget-store";
 
 /**
  * GET /api/settings?shop=...
@@ -33,6 +34,10 @@ export async function GET(request: NextRequest) {
     typeof s.excludedCategoryIds === "string" && s.excludedCategoryIds.length
       ? JSON.parse(s.excludedCategoryIds)
       : [];
+  
+  // Get widget injection point from JSON file
+  const widgetInjectionPoint = getWidgetInjectionPoint(shop);
+
   return NextResponse.json({
     activated: s.activated,
     revenueShareTier: s.revenueShareTier,
@@ -49,6 +54,7 @@ export async function GET(request: NextRequest) {
     claimPortalConfigured: s.claimPortalConfigured,
     itemProtectionProductId: s.itemProtectionProductId ?? undefined,
     itemProtectionVariantId: s.itemProtectionVariantId ?? undefined,
+    widgetInjectionPoint,
   });
 }
 
@@ -58,7 +64,8 @@ export async function GET(request: NextRequest) {
  *   activated, revenueShareTier, protectionPercent,
  *   pricingMode, fixedPercentAll, categoryPercents, excludedCategoryIds,
  *   widgetVariant, defaultAtCheckout, checkoutPlacement,
- *   enablePoweredByChubb, offerAtCheckout, claimPortalConfigured
+ *   enablePoweredByChubb, offerAtCheckout, claimPortalConfigured,
+ *   widgetInjectionPoint
  * }
  */
 export async function PATCH(request: NextRequest) {
@@ -91,6 +98,19 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: msg }, { status: 400 });
   }
   const body = parseResult.data;
+
+  // Handle widgetInjectionPoint separately (saved to JSON file, not DB)
+  if (body.widgetInjectionPoint) {
+    try {
+      saveWidgetInjectionPoint(shop, body.widgetInjectionPoint);
+    } catch (error) {
+      console.error("[settings] Error saving widget injection point:", error);
+      return NextResponse.json(
+        { error: "Failed to save widget placement" },
+        { status: 500 }
+      );
+    }
+  }
 
   const upd: Record<string, unknown> = {};
   const allowed = [
@@ -139,6 +159,9 @@ export async function PATCH(request: NextRequest) {
       ? JSON.parse(updated.excludedCategoryIds)
       : [];
 
+  // Get widget injection point from JSON file
+  const widgetInjectionPoint = getWidgetInjectionPoint(shop);
+
   return NextResponse.json({
     activated: updated.activated,
     revenueShareTier: updated.revenueShareTier,
@@ -155,5 +178,6 @@ export async function PATCH(request: NextRequest) {
     claimPortalConfigured: updated.claimPortalConfigured,
     itemProtectionProductId: updated.itemProtectionProductId ?? undefined,
     itemProtectionVariantId: updated.itemProtectionVariantId ?? undefined,
+    widgetInjectionPoint,
   });
 }

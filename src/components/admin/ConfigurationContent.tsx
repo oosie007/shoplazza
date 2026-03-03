@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { CheckoutWidgetPreview } from "./CheckoutWidgetPreview";
-import { isSupportedCountry, getDefaultWidgetInjectionPoint } from "@/lib/config/countries";
+import { isSupportedCountry } from "@/lib/config/countries";
+import { WIDGET_PLACEMENT_OPTIONS } from "@/lib/config/widget";
 
 const APP_URL =
   typeof window !== "undefined" ? window.location.origin : "";
@@ -23,6 +24,7 @@ type Settings = {
   claimPortalConfigured: boolean;
   itemProtectionProductId?: string;
   itemProtectionVariantId?: string;
+  widgetInjectionPoint?: string;
 };
 
 function getShopFromQuery(): string | null {
@@ -31,6 +33,7 @@ function getShopFromQuery(): string | null {
 }
 
 type PreviewViewport = "desktop" | "mobile";
+
 type Category = { id: string; name: string };
 
 export function ConfigurationContent() {
@@ -47,8 +50,6 @@ export function ConfigurationContent() {
   const [ensureMessage, setEnsureMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [bindLoading, setBindLoading] = useState(false);
   const [bindMessage, setBindMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
-  const [storeCountry, setStoreCountry] = useState<string | null>(null);
-  const [isValidLocation, setIsValidLocation] = useState(false);
 
   useEffect(() => {
     setShop(getShopFromQuery());
@@ -104,26 +105,6 @@ export function ConfigurationContent() {
     };
   }, [shop, settings?.pricingMode]);
 
-  // Fetch store location for validation
-  useEffect(() => {
-    if (!shop) return;
-    let cancelled = false;
-    fetch(`${APP_URL}/api/store-location?shop=${encodeURIComponent(shop)}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((data) => {
-        if (!cancelled && data) {
-          setStoreCountry(data.country_name);
-          setIsValidLocation(isSupportedCountry(data.country_code));
-        }
-      })
-      .catch((error) => {
-        console.error("Failed to fetch store location:", error);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [shop]);
-
   const updateSetting = async (patch: Partial<Settings>) => {
     if (!shop || saving) return;
     setSaving(true);
@@ -172,12 +153,24 @@ export function ConfigurationContent() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-8">
-      {/* Data overview section - removed for brevity in this update */}
+      {/* Top: Data dashboard (own section per Figma) */}
       <section>
         <h2 className="text-lg font-medium text-zinc-900">Data overview</h2>
         <p className="mt-0.5 text-sm text-zinc-500">
           The monetary values in the data overview section are shown in US dollars.
         </p>
+        <div className="mt-2 flex flex-wrap items-center justify-end gap-2">
+          <label className="text-sm text-zinc-600">Start date</label>
+          <input
+            type="date"
+            className="rounded border border-zinc-300 px-2 py-1 text-sm"
+          />
+          <label className="text-sm text-zinc-600">End date</label>
+          <input
+            type="date"
+            className="rounded border border-zinc-300 px-2 py-1 text-sm"
+          />
+        </div>
         <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
           <MetricCard label="Insured orders" value="0" />
           <MetricCard label="Insured order amount" value="0.00 USD" />
@@ -187,6 +180,7 @@ export function ConfigurationContent() {
         </div>
       </section>
 
+      {/* Configuration title */}
       <div>
         <h1 className="text-2xl font-semibold text-zinc-900">Configuration</h1>
         <p className="mt-1 text-sm text-zinc-600">
@@ -209,9 +203,11 @@ export function ConfigurationContent() {
         </p>
       </div>
 
+      {/* Same row: Config left, Preview right so preview stays visible when changing settings */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 md:gap-8">
+        {/* Left: Configurator */}
         <div className="space-y-6 min-w-0">
-          {/* Activation section */}
+          {/* Activate + Default */}
           <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
@@ -240,7 +236,7 @@ export function ConfigurationContent() {
                     className="h-4 w-4 rounded border-zinc-300 text-blue-600"
                   />
                   <span className="text-sm text-zinc-700">
-                    Default Item Protection on at checkout
+                    Default &apos;Item Protection&apos; on at checkout
                   </span>
                 </label>
               </div>
@@ -249,7 +245,7 @@ export function ConfigurationContent() {
                 onClick={() =>
                   updateSetting({ activated: !settings?.activated })
                 }
-                disabled={saving || !isValidLocation}
+                disabled={saving}
                 className={
                   "shrink-0 rounded-lg px-4 py-2 text-sm font-medium transition " +
                   (settings?.activated
@@ -259,45 +255,6 @@ export function ConfigurationContent() {
               >
                 {settings?.activated ? "Deactivate" : "Activate"}
               </button>
-            </div>
-          </section>
-
-          {/* Store Location - now fetches from API */}
-          <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
-            <h2 className="text-lg font-semibold text-zinc-900">Store Location</h2>
-            <p className="mt-2 text-sm text-zinc-600">
-              Item Protection is only available for stores in the UK, France, Switzerland, and Netherlands.
-            </p>
-            <div className="mt-4 flex items-center gap-3">
-              {isValidLocation ? (
-                <>
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100">
-                    <span className="text-lg">✓</span>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-zinc-900">
-                      {storeCountry || "Verified"}
-                    </p>
-                    <p className="text-xs text-zinc-500">
-                      Supported country
-                    </p>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100">
-                    <span className="text-lg">✗</span>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-zinc-900">
-                      {storeCountry || "Unknown"}
-                    </p>
-                    <p className="text-xs text-zinc-500">
-                      Unsupported country - cannot activate
-                    </p>
-                  </div>
-                </>
-              )}
             </div>
           </section>
 
@@ -359,6 +316,15 @@ export function ConfigurationContent() {
                 <p className="text-sm font-medium text-zinc-900">
                   Premium % by category
                 </p>
+                <p className="mt-0.5 text-xs text-zinc-500">
+                  Leave empty = category not covered. Set a number = premium % for that category.
+                  {!categoriesFromApi && !categoriesError && " (Using sample categories for testing.)"}
+                  {categoriesError && (
+                    <span className="mt-1 block text-amber-600">
+                      Could not load store categories: {categoriesError}. Reconnect store and try again, or check server logs.
+                    </span>
+                  )}
+                </p>
                 <ul className="mt-3 space-y-2">
                   {categories.map((cat) => (
                     <li
@@ -391,7 +357,7 @@ export function ConfigurationContent() {
             )}
           </section>
 
-          {/* Widget */}
+          {/* Widget appearance */}
           <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
             <h2 className="text-lg font-medium text-zinc-900">Widget</h2>
             <label className="mt-3 flex cursor-pointer items-center gap-2 text-sm">
@@ -403,30 +369,70 @@ export function ConfigurationContent() {
                 }
                 className="h-4 w-4 rounded border-zinc-300 text-blue-600"
               />
-              <span>Show "Powered by Chubb" logo</span>
+              <span>Show &quot;Powered by Chubb&quot; logo</span>
             </label>
           </section>
 
-          {/* Widget placement */}
+          {/* Widget injection point */}
           <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
             <h2 className="text-lg font-medium text-zinc-900">Widget placement</h2>
             <p className="mt-0.5 text-sm text-zinc-600">
-              The widget is configured to display on the checkout page.
+              Choose where to display the Item Protection widget.
             </p>
-            <div className="mt-4 rounded-md bg-blue-50 p-3 border border-blue-200">
-              <p className="text-sm font-medium text-blue-900">Checkout page</p>
-              <p className="text-xs text-blue-700 mt-1">
-                Widget appears during purchase. Customer may need to reload page to see updated total.
-              </p>
+            <div className="mt-3 space-y-2">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="widgetInjectionPoint"
+                  value="checkout"
+                  checked={(settings?.widgetInjectionPoint ?? "checkout") === "checkout"}
+                  onChange={() => updateSetting({ widgetInjectionPoint: "checkout" })}
+                  className="h-4 w-4"
+                />
+                <div>
+                  <span className="font-medium block">Checkout page</span>
+                  <span className="text-xs text-zinc-500">Widget appears during purchase. Customer may need to reload page to see updated total.</span>
+                </div>
+              </label>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="radio"
+                  name="widgetInjectionPoint"
+                  value="cart"
+                  checked={(settings?.widgetInjectionPoint ?? "checkout") === "cart"}
+                  onChange={() => updateSetting({ widgetInjectionPoint: "cart" })}
+                  className="h-4 w-4"
+                />
+                <div>
+                  <span className="font-medium block">Cart page</span>
+                  <span className="text-xs text-zinc-500">Widget appears before checkout. Total updates immediately (recommended).</span>
+                </div>
+              </label>
             </div>
           </section>
-          {/* Cart totals */}
+
+          {/* Cart totals: we create the product automatically; merchants leave fields blank */}
           <section className="rounded-xl border border-zinc-200 bg-white p-5 shadow-sm">
             <h2 className="text-lg font-medium text-zinc-900">Cart totals integration</h2>
             <p className="mt-1 text-sm text-zinc-700">
-              <strong>No setup required.</strong> We create an "Item Protection" product in your store automatically.
+              <strong>No setup required.</strong> We create an &quot;Item Protection&quot; product in your store automatically (on install or the first time a customer sees the widget). The widget adds or removes that line when the customer toggles, and the total updates. Leave the fields below blank—they are filled automatically.
+            </p>
+            <p className="mt-2 text-sm text-zinc-500">
+              If the IDs below are still empty after opening the app or loading checkout, our automatic creation may have failed (e.g. missing permission). You can then create a product named &quot;Item protection&quot; in your store and paste its product and variant IDs here as a fallback.
             </p>
             <div className="mt-3 space-y-2">
+              {ensureMessage && (
+                <div
+                  className={
+                    "rounded-md border px-3 py-2 text-sm " +
+                    (ensureMessage.type === "success"
+                      ? "border-green-200 bg-green-50 text-green-800"
+                      : "border-red-200 bg-red-50 text-red-800")
+                  }
+                >
+                  {ensureMessage.text}
+                </div>
+              )}
               <button
                 type="button"
                 disabled={!shop || ensureLoading}
@@ -443,8 +449,17 @@ export function ConfigurationContent() {
                     if (data.ok) {
                       setEnsureMessage({
                         type: "success",
-                        text: `Product created. Product ID: ${data.productId}, Variant ID: ${data.variantId}.`,
+                        text: `Product created. Product ID: ${data.productId}, Variant ID: ${data.variantId}. Reloading settings…`,
                       });
+                      const settingsRes = await fetch(`${APP_URL}/api/settings?shop=${encodeURIComponent(shop)}`);
+                      if (settingsRes.ok) {
+                        const next = await settingsRes.json();
+                        setSettings(next ?? settings);
+                        setEnsureMessage({
+                          type: "success",
+                          text: "Item Protection product created. The checkout toggle will now add/remove the line and update the total.",
+                        });
+                      }
                     } else {
                       setEnsureMessage({
                         type: "error",
@@ -464,11 +479,94 @@ export function ConfigurationContent() {
               >
                 {ensureLoading ? "Creating…" : "Create Item Protection product now"}
               </button>
+              {bindMessage && (
+                <div
+                  className={
+                    "rounded-md border px-3 py-2 text-sm " +
+                    (bindMessage.type === "success"
+                      ? "border-green-200 bg-green-50 text-green-800"
+                      : "border-red-200 bg-red-50 text-red-800")
+                  }
+                >
+                  {bindMessage.text}
+                </div>
+              )}
+              <button
+                type="button"
+                disabled={!shop || bindLoading}
+                onClick={async () => {
+                  if (!shop) return;
+                  setBindMessage(null);
+                  setBindLoading(true);
+                  try {
+                    const res = await fetch(
+                      `${APP_URL}/api/admin/bind-cart-transform?shop=${encodeURIComponent(shop)}`,
+                      { method: "POST" }
+                    );
+                    const data = (await res.json()) as {
+                      ok: boolean;
+                      error?: string;
+                      message?: string;
+                      status?: number;
+                      body?: string;
+                    };
+                    if (data.ok) {
+                      setBindMessage({
+                        type: "success",
+                        text: data.message ?? "Cart Transform bound successfully. Check Vercel logs for [cart-transform] when the cart is loaded.",
+                      });
+                    } else {
+                      const detail =
+                        data.status != null && data.body != null
+                          ? `HTTP ${data.status}: ${data.body}`
+                          : data.error ?? "Unknown error";
+                      setBindMessage({
+                        type: "error",
+                        text: `Bind failed: ${detail}`,
+                      });
+                    }
+                  } catch (e) {
+                    setBindMessage({
+                      type: "error",
+                      text: e instanceof Error ? e.message : String(e),
+                    });
+                  } finally {
+                    setBindLoading(false);
+                  }
+                }}
+                className="ml-2 rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm font-medium text-zinc-700 shadow-sm hover:bg-zinc-50 disabled:opacity-50"
+              >
+                {bindLoading ? "Binding…" : "Re-bind Cart Transform"}
+              </button>
+              <label className="block text-sm font-medium text-zinc-700">
+                Item Protection product ID (leave blank unless fallback)
+              </label>
+              <input
+                type="text"
+                value={settings?.itemProtectionProductId ?? ""}
+                onChange={(e) =>
+                  updateSetting({ itemProtectionProductId: e.target.value })
+                }
+                placeholder="Filled automatically; or paste if using fallback"
+                className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+              <label className="block text-sm font-medium text-zinc-700">
+                Item Protection variant ID (leave blank unless fallback)
+              </label>
+              <input
+                type="text"
+                value={settings?.itemProtectionVariantId ?? ""}
+                onChange={(e) =>
+                  updateSetting({ itemProtectionVariantId: e.target.value })
+                }
+                placeholder="Filled automatically; or paste if using fallback"
+                className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
             </div>
           </section>
         </div>
 
-        {/* Preview */}
+        {/* Right: Checkout-style preview (product + summary + our widget) */}
         <div className="md:sticky md:top-6 md:self-start min-w-0">
           <div className="rounded-xl border border-zinc-200 bg-zinc-50/80 p-4 shadow-sm">
             <h2 className="text-lg font-medium text-zinc-900">Preview</h2>
@@ -515,6 +613,7 @@ export function ConfigurationContent() {
                   (previewViewport === "mobile" ? "min-h-[480px] bg-zinc-100 p-4" : "p-4")
                 }
               >
+                {/* Mock checkout: product row */}
                 <div className="flex gap-4 pb-4">
                   <img
                     src="/checkout-preview-blouse.png"
@@ -528,8 +627,13 @@ export function ConfigurationContent() {
                     <p className="text-sm text-zinc-500">
                       Size: XS · Color: Black
                     </p>
+                    <p className="mt-1 text-sm">
+                      <span className="text-zinc-400 line-through">$284.99</span>{" "}
+                      <span className="font-semibold text-zinc-900">$234.99</span>
+                    </p>
                   </div>
                 </div>
+                {/* Cost breakdown: Item Protection line only when preview widget toggle is on */}
                 <div className="space-y-1 border-t border-zinc-200 pt-4 text-sm">
                   <div className="flex justify-between text-zinc-600">
                     <span>Subtotal</span>
@@ -550,6 +654,10 @@ export function ConfigurationContent() {
                   <span>Total</span>
                   <span>USD ${total.toFixed(2)}</span>
                 </div>
+                <p className="text-xs text-zinc-500">
+                  500 points will be awarded for order fulfillment
+                </p>
+                {/* Our actual widget */}
                 <div className="mt-4 border-t border-zinc-200 pt-4">
                   <CheckoutWidgetPreview
                     price={samplePrice}
