@@ -5,9 +5,9 @@
 
 (function () {
   console.log("[CD INSURE] Widget version: 2025-03-02-operation-fix (Cart Transform response format fixed)");
-  const shopDomain = window.SHOPLAZZA_SHOP_DOMAIN || (typeof location !== "undefined" && location.hostname ? location.hostname : "");
-  const hasCheckoutAPI = typeof CheckoutAPI !== "undefined";
-  const APP_BASE_URL = window.CD_INSURE_APP_URL || "";
+  var shopDomain = window.SHOPLAZZA_SHOP_DOMAIN || (typeof location !== "undefined" && location.hostname ? location.hostname : "");
+  var hasCheckoutAPI = typeof CheckoutAPI !== "undefined";
+  var APP_BASE_URL = window.CD_INSURE_APP_URL || "";
 
   var debugEnabled = false;
   var debugEl = null;
@@ -47,9 +47,9 @@
     console.log("[CD Insure] checkout-widget.js loaded, shop=" + shopDomain + ", appUrl=" + (APP_BASE_URL || "MISSING"));
   }
 
-  let settings = null;
-  let premiumAmount = 0;
-  let toggleOn = false;
+  var settings = null;
+  var premiumAmount = 0;
+  var toggleOn = false;
   var pkgSet404Warned = false;
 
   function fetchSettings() {
@@ -63,7 +63,7 @@
         "/api/public-settings?shop=" +
         encodeURIComponent(shopDomain)
     )
-      .then((r) => {
+      .then(function(r) {
         if (r.ok) {
           debugLog("fetchSettings ok " + r.status);
           return r.json();
@@ -80,27 +80,28 @@
   /** Optional map productId -> categoryId from backend when checkout doesn't provide category per product. */
   function computePremium(prices, products, productIdToCategory) {
     if (!settings) return 0;
-    const mode = settings.pricingMode || "fixed_percent_all";
-    const defaultPercent = settings.fixedPercentAll || 0;
-    const categoryPercents = settings.categoryPercents || {};
-    const excludedCategoryIds = settings.excludedCategoryIds || [];
-    const lookup = productIdToCategory || {};
+    var mode = settings.pricingMode || "fixed_percent_all";
+    var defaultPercent = settings.fixedPercentAll || 0;
+    var categoryPercents = settings.categoryPercents || {};
+    var excludedCategoryIds = settings.excludedCategoryIds || [];
+    var lookup = productIdToCategory || {};
 
     if (mode === "fixed_percent_all") {
-      let total = parseFloat(
+      var total = parseFloat(
         prices.totalPrice || prices.subtotalPrice ||
         prices.total_price || prices.subtotal_price ||
         prices.originalTotalPrice || prices.original_total_price ||
         "0"
       );
       if (total <= 0 && products && products.length) {
-        for (const p of products) {
-          const linePrice = parseFloat(p.finalLinePrice || p.linePrice || p.price || "0") || 0;
-          const qty = parseInt(p.quantity || "1", 10) || 1;
+        for (var i = 0; i < products.length; i++) {
+          var p = products[i];
+          var linePrice = parseFloat(p.finalLinePrice || p.linePrice || p.price || "0") || 0;
+          var qty = parseInt(p.quantity || "1", 10) || 1;
           total += linePrice * qty;
         }
       }
-      const premium = +(total * (defaultPercent / 100)).toFixed(2);
+      var premium = +(total * (defaultPercent / 100)).toFixed(2);
       if (total > 0 && premium === 0 && defaultPercent > 0) {
         return 0.01;
       }
@@ -108,24 +109,25 @@
     }
 
     // per_category: use % per product category; fallback to defaultPercent if category unknown or not set
-    let total = 0;
-    const categoryPercentKeys = Object.keys(categoryPercents);
-    const lookupKeys = Object.keys(lookup);
-    for (const p of products || []) {
-      const linePrice = parseFloat(p.finalLinePrice || p.linePrice || "0");
-      const pid = p.id != null ? String(p.id) : (p.productId != null ? String(p.productId) : null);
+    var total = 0;
+    var categoryPercentKeys = Object.keys(categoryPercents);
+    var lookupKeys = Object.keys(lookup);
+    for (var i = 0; i < (products || []).length; i++) {
+      var p = (products || [])[i];
+      var linePrice = parseFloat(p.finalLinePrice || p.linePrice || "0");
+      var pid = p.id != null ? String(p.id) : (p.productId != null ? String(p.productId) : null);
       // Resolve category: from product object first, then from API map (try pid and raw id/productId for key mismatch)
-      let categoryId = p.categoryId != null ? String(p.categoryId) : (p.category_id != null ? String(p.category_id) : (p.collectionId != null ? String(p.collectionId) : (p.collection_id != null ? String(p.collection_id) : null)));
+      var categoryId = p.categoryId != null ? String(p.categoryId) : (p.category_id != null ? String(p.category_id) : (p.collectionId != null ? String(p.collectionId) : (p.collection_id != null ? String(p.collection_id) : null)));
       if (!categoryId && pid) {
         categoryId = lookup[pid] || (p.id != null ? lookup[String(p.id)] : undefined) || (p.productId != null ? lookup[String(p.productId)] : undefined) || null;
       }
-      let percent = defaultPercent;
+      var percent = defaultPercent;
       if (categoryId) {
         if (excludedCategoryIds.indexOf(categoryId) >= 0) percent = 0;
         else if (categoryPercents[categoryId] != null) percent = Number(categoryPercents[categoryId]);
       }
       if (typeof console !== "undefined" && console.log) {
-        console.log("[CD Insure] computePremium line:", { pid, categoryId, mapKeys: lookupKeys, categoryPercentKeys, percent, linePrice, matched: categoryPercents[categoryId] != null });
+        console.log("[CD Insure] computePremium line:", { pid: pid, categoryId: categoryId, mapKeys: lookupKeys, categoryPercentKeys: categoryPercentKeys, percent: percent, linePrice: linePrice, matched: categoryPercents[categoryId] != null });
       }
       total += linePrice * (percent / 100);
     }
@@ -135,7 +137,7 @@
   /** Fetch productId -> categoryId from app when pricing is per_category (checkout doesn't send category per line). */
   function fetchProductCategoryMap(products) {
     if (!APP_BASE_URL || !settings || settings.pricingMode !== "per_category" || !(products && products.length)) return Promise.resolve({});
-    const ids = products.map(function (p) { return p.id != null ? p.id : p.productId; }).filter(Boolean);
+    var ids = products.map(function (p) { return p.id != null ? p.id : p.productId; }).filter(Boolean);
     if (ids.length === 0) return Promise.resolve({});
     if (typeof console !== "undefined" && console.log) {
       console.log("[CD Insure] products from checkout:", products.map(function (p) { return { id: p.id, productId: p.productId, title: p.productTitle || p.title }; }));
@@ -162,7 +164,7 @@
 
   /** Get order/checkout token from URL (e.g. /checkout/2407954194541497895892?step=...) */
   function getOrderToken() {
-    const m = typeof location !== "undefined" && location.pathname && location.pathname.match(/\/checkout\/([^/?]+)/);
+    var m = typeof location !== "undefined" && location.pathname && location.pathname.match(/\/checkout\/([^/?]+)/);
     return m ? m[1] : null;
   }
 
@@ -198,15 +200,15 @@
    * Uses CheckoutAPI when available; otherwise tries page globals (e.g. __CHECKOUT_STATE__).
    */
   function getPricePayload() {
-    const orderToken = getOrderToken();
+    var orderToken = getOrderToken();
     if (!orderToken) return null;
     var stepMatch = typeof location !== "undefined" && location.search && location.search.match(/step=([^&]+)/);
-    const step = hasCheckoutAPI && CheckoutAPI.step && typeof CheckoutAPI.step.getStep === "function"
+    var step = hasCheckoutAPI && CheckoutAPI.step && typeof CheckoutAPI.step.getStep === "function"
       ? CheckoutAPI.step.getStep()
       : (stepMatch ? stepMatch[1] : "contact_information");
-    const prices = hasCheckoutAPI && CheckoutAPI.store && CheckoutAPI.store.getPrices ? CheckoutAPI.store.getPrices() : null;
-    const address = hasCheckoutAPI && CheckoutAPI.address && CheckoutAPI.address.getShippingAddress ? CheckoutAPI.address.getShippingAddress() : null;
-    const totalTipReceived = (prices && prices.totalTipReceived) ? String(prices.totalTipReceived) : "0.00";
+    var prices = hasCheckoutAPI && CheckoutAPI.store && CheckoutAPI.store.getPrices ? CheckoutAPI.store.getPrices() : null;
+    var address = hasCheckoutAPI && CheckoutAPI.address && CheckoutAPI.address.getShippingAddress ? CheckoutAPI.address.getShippingAddress() : null;
+    var totalTipReceived = (prices && prices.totalTipReceived) ? String(prices.totalTipReceived) : "0.00";
 
     var shippingAddress = {
       id: (address && address.id) || "",
@@ -268,12 +270,12 @@
   function createInsuranceQuote(enabled) {
     console.log("[CD INSURE] createInsuranceQuote called with enabled=" + enabled);
     if (!enabled) return Promise.resolve(null);
-    const orderToken = getOrderToken();
+    var orderToken = getOrderToken();
     if (!orderToken) {
       console.log("[CD INSURE] createInsuranceQuote: no orderToken");
       return Promise.resolve(null);
     }
-    const origin = getStoreOrigin();
+    var origin = getStoreOrigin();
     var pricePayload = getPricePayload();
     if (!pricePayload) {
       console.log("[CD INSURE] createInsuranceQuote: no pricePayload");
@@ -335,7 +337,7 @@
    */
   function queryInsuranceQuote(quoteId) {
     if (!quoteId) return Promise.resolve(null);
-    const origin = getStoreOrigin();
+    var origin = getStoreOrigin();
 
     var queryPayload = {
       data: {
@@ -560,8 +562,8 @@
    * @see https://www.shoplazza.dev/docs/cart-api-reference
    */
   function applyPremiumViaCartAPI(enabled) {
-    const productId = settings && settings.itemProtectionProductId;
-    const variantId = settings && settings.itemProtectionVariantId;
+    var productId = settings && settings.itemProtectionProductId;
+    var variantId = settings && settings.itemProtectionVariantId;
     if (!productId || !variantId) {
       if (enabled) {
         if (typeof console !== "undefined" && console.warn) {
@@ -571,10 +573,10 @@
       }
       return;
     }
-    const base = (typeof window !== "undefined" && window.SHOPLAZZA && window.SHOPLAZZA.routes && window.SHOPLAZZA.routes.root)
+    var base = (typeof window !== "undefined" && window.SHOPLAZZA && window.SHOPLAZZA.routes && window.SHOPLAZZA.routes.root)
       ? window.SHOPLAZZA.routes.root
       : getStoreOrigin();
-    const cartUrl = base + "/api/cart";
+    var cartUrl = base + "/api/cart";
 
     if (enabled) {
       fetch(cartUrl, {
@@ -731,7 +733,7 @@
   /** Notify our backend for logging / future server-side fee API. */
   function applyPremiumViaBackend(enabled) {
     if (!APP_BASE_URL || !shopDomain) return;
-    const orderToken = getOrderToken();
+    var orderToken = getOrderToken();
     if (!orderToken) return;
     fetch(APP_BASE_URL + "/api/checkout/apply-fee", {
       method: "POST",
@@ -746,7 +748,7 @@
     }).catch(function () {});
   }
 
-  const FEE_LABEL = "Item protection";
+  var FEE_LABEL = "Item protection";
 
   function applyPremium(enabled) {
     console.log("[CD INSURE] 🔔 Toggle clicked: insurance " + (enabled ? "ON" : "OFF"));
@@ -793,77 +795,72 @@
 
   function renderWidget(container) {
     if (!settings) return;
-    const state = toggleOn ? "on" : "off";
-    const priceStr = premiumAmount > 0 ? premiumAmount.toFixed(2) : "—";
-    const showLogo = settings.enablePoweredByChubb !== false;
-    const currencySymbol = getCurrencySymbol();
-    const hasPercent = (settings.fixedPercentAll || 0) > 0;
-    const isDisabled = (premiumAmount <= 0 const isDisabled = premiumAmount <= 0 && !hasPercent;const isDisabled = premiumAmount <= 0 && !hasPercent; !hasPercent) || !isShippingCountrySupported();
+    var state = toggleOn ? "on" : "off";
+    var priceStr = premiumAmount > 0 ? premiumAmount.toFixed(2) : "—";
+    var showLogo = settings.enablePoweredByChubb !== false;
+    var currencySymbol = getCurrencySymbol();
+    var hasPercent = (settings.fixedPercentAll || 0) > 0;
+    var isDisabled = (premiumAmount <= 0 && !hasPercent) || !isShippingCountrySupported();
 
-    container.innerHTML = `
-      <style>
-        @import url('https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap');
-        #cd-insure-widget-root .ip-wrap{width:100%;max-width:100%;box-sizing:border-box;padding:0 14px;}
-        @media (min-width:640px){#cd-insure-widget-root .ip-wrap{padding:0;}}
-        #cd-insure-widget-root .ip-card{box-sizing:border-box;display:flex;flex-direction:column;align-items:stretch;padding:14px 14px 10px;gap:12px;width:100%;max-width:100%;background:#FFFFFF;border:1px solid #D9D9D9;border-radius:5px;font-family:'Lato',sans-serif;}
-        @media (min-width:640px){#cd-insure-widget-root .ip-card{max-width:100%;}}
-        #cd-insure-widget-root .ip-card-on{}
-        #cd-insure-widget-root .ip-card-disabled{opacity:0.65;pointer-events:none;}
-        #cd-insure-widget-root .ip-header{display:flex;flex-direction:row;justify-content:space-between;align-items:center;gap:12px;padding:0;}
-        #cd-insure-widget-root .ip-header-left{display:flex;flex-direction:row;align-items:center;gap:10px;min-width:0;}
-        #cd-insure-widget-root .ip-shield{display:flex;align-items:flex-start;padding:0;width:25px;height:25px;flex-shrink:0;}
-        #cd-insure-widget-root .ip-shield .ip-shield-icon{width:25px;height:25px;}
-        #cd-insure-widget-root .ip-header-text{display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:0;}
-        #cd-insure-widget-root .ip-safe-purchase{font-family:'Lato',sans-serif;font-weight:700;font-size:10px;line-height:18px;color:#808080;}
-        #cd-insure-widget-root .ip-title-row{font-family:'Lato',sans-serif;font-weight:700;font-size:16px;line-height:18px;color:#222222;}
-        #cd-insure-widget-root .ip-title-row .ip-price-inline{font-weight:400;}
-        #cd-insure-widget-root .ip-list{margin:0;padding:0 0 0 20px;list-style-type:disc;list-style-position:outside;font-family:'Lato',sans-serif;font-weight:400;font-size:12px;line-height:16px;color:#6F7175;}
-        #cd-insure-widget-root .ip-list li{margin-bottom:4px;display:list-item;}
-        #cd-insure-widget-root .ip-not-available{margin:0;padding:0;list-style:none;font-family:'Lato',sans-serif;font-size:12px;line-height:16px;color:#6F7175;}
-        #cd-insure-widget-root .ip-learn{font-family:'Lato',sans-serif;font-weight:700;font-size:12px;line-height:22px;}
-        #cd-insure-widget-root .ip-learn a{color:#007AB3;text-decoration:underline;}
-        #cd-insure-widget-root .ip-footer{box-sizing:border-box;display:flex;flex-direction:row;justify-content:space-between;align-items:center;gap:8px;padding:0;border-top:1px solid #E5E5E5;}
-        #cd-insure-widget-root .ip-tcs{font-family:'Lato',sans-serif;font-weight:400;font-size:12px;line-height:14px;color:#808080;}
-        #cd-insure-widget-root .ip-powered{display:flex;align-items:center;}
-        #cd-insure-widget-root .ip-powered-by-chubb{height:22px;width:180px;}
-        #cd-insure-widget-root .ip-toggle{width:48px;height:28px;border-radius:1000px;border:none;position:relative;cursor:pointer;background:#808080;padding:0;flex-shrink:0;}
-        #cd-insure-widget-root .ip-toggle.on{background:#191919;}
-        #cd-insure-widget-root .ip-toggle-thumb{position:absolute;top:4px;left:4px;width:20px;height:20px;border-radius:1000px;background:#FFFFFF;transition:transform .15s ease;}
-        #cd-insure-widget-root .ip-toggle.on .ip-toggle-thumb{transform:translateX(24px);left:0;}
-      </style>
-      <div class="ip-wrap">
-        <div class="ip-card ${state === "on" ? "ip-card-on" : ""} ${isDisabled ? "ip-card-disabled" : ""}">
-          <div class="ip-header">
-            <div class="ip-header-left">
-              <div class="ip-shield">${getShieldCheckSvg()}</div>
-              <div class="ip-header-text">
-                <div class="ip-safe-purchase">Safe Purchase</div>
-                <div class="ip-title-row">Item protection <span class="ip-price-inline">for ${currencySymbol}${priceStr}</span></div>
-              </div>
-            </div>
-            ${!isDisabled ? `<button id="sp-switch-cb" class="ip-toggle ${state === "on" ? "on" : ""}" type="button" aria-pressed="${state === "on"}"><span class="ip-toggle-thumb"></span></button>` : ""}
-          </div>
-          <div class="ip-body">
-            ${!isDisabled
-              ? `<ul class="ip-list">
-              <li>Provides you compensation should the item delivered not be as described</li>
-              <li>Covers your item against theft and accidental for 30 days after you receive it</li>
-              <li>Claims are handled directly with Chubb.</li>
-            </ul>`
-              : `<p class="ip-not-available">Item protection is not available for this order.</p>`}
-            <div class="ip-learn"><a href="#" target="_blank" rel="noopener">Learn more</a></div>
-          </div>
-          <div class="ip-footer">
-            <span class="ip-tcs">*T&amp;Cs apply</span>
-            ${showLogo ? `<span class="ip-powered">${getPoweredByChubbSvg()}</span>` : ""}
-          </div>
-        </div>
-      </div>
-    `;
+    container.innerHTML =
+      "<style>" +
+        "@import url('https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap');" +
+        "#cd-insure-widget-root .ip-wrap{width:100%;max-width:100%;box-sizing:border-box;padding:0 14px;}" +
+        "@media (min-width:640px){#cd-insure-widget-root .ip-wrap{padding:0;}}" +
+        "#cd-insure-widget-root .ip-card{box-sizing:border-box;display:flex;flex-direction:column;align-items:stretch;padding:14px 14px 10px;gap:12px;width:100%;max-width:100%;background:#FFFFFF;border:1px solid #D9D9D9;border-radius:5px;font-family:'Lato',sans-serif;}" +
+        "@media (min-width:640px){#cd-insure-widget-root .ip-card{max-width:100%;}}" +
+        "#cd-insure-widget-root .ip-card-on{}" +
+        "#cd-insure-widget-root .ip-card-disabled{opacity:0.65;pointer-events:none;}" +
+        "#cd-insure-widget-root .ip-header{display:flex;flex-direction:row;justify-content:space-between;align-items:center;gap:12px;padding:0;}" +
+        "#cd-insure-widget-root .ip-header-left{display:flex;flex-direction:row;align-items:center;gap:10px;min-width:0;}" +
+        "#cd-insure-widget-root .ip-shield{display:flex;align-items:flex-start;padding:0;width:25px;height:25px;flex-shrink:0;}" +
+        "#cd-insure-widget-root .ip-shield .ip-shield-icon{width:25px;height:25px;}" +
+        "#cd-insure-widget-root .ip-header-text{display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:0;}" +
+        "#cd-insure-widget-root .ip-safe-purchase{font-family:'Lato',sans-serif;font-weight:700;font-size:10px;line-height:18px;color:#808080;}" +
+        "#cd-insure-widget-root .ip-title-row{font-family:'Lato',sans-serif;font-weight:700;font-size:16px;line-height:18px;color:#222222;}" +
+        "#cd-insure-widget-root .ip-title-row .ip-price-inline{font-weight:400;}" +
+        "#cd-insure-widget-root .ip-list{margin:0;padding:0 0 0 20px;list-style-type:disc;list-style-position:outside;font-family:'Lato',sans-serif;font-weight:400;font-size:12px;line-height:16px;color:#6F7175;}" +
+        "#cd-insure-widget-root .ip-list li{margin-bottom:4px;display:list-item;}" +
+        "#cd-insure-widget-root .ip-not-available{margin:0;padding:0;list-style:none;font-family:'Lato',sans-serif;font-size:12px;line-height:16px;color:#6F7175;}" +
+        "#cd-insure-widget-root .ip-learn{font-family:'Lato',sans-serif;font-weight:700;font-size:12px;line-height:22px;}" +
+        "#cd-insure-widget-root .ip-learn a{color:#007AB3;text-decoration:underline;}" +
+        "#cd-insure-widget-root .ip-footer{box-sizing:border-box;display:flex;flex-direction:row;justify-content:space-between;align-items:center;gap:8px;padding:0;border-top:1px solid #E5E5E5;}" +
+        "#cd-insure-widget-root .ip-tcs{font-family:'Lato',sans-serif;font-weight:400;font-size:12px;line-height:14px;color:#808080;}" +
+        "#cd-insure-widget-root .ip-powered{display:flex;align-items:center;}" +
+        "#cd-insure-widget-root .ip-powered-by-chubb{height:22px;width:180px;}" +
+        "#cd-insure-widget-root .ip-toggle{width:48px;height:28px;border-radius:1000px;border:none;position:relative;cursor:pointer;background:#808080;padding:0;flex-shrink:0;}" +
+        "#cd-insure-widget-root .ip-toggle.on{background:#191919;}" +
+        "#cd-insure-widget-root .ip-toggle-thumb{position:absolute;top:4px;left:4px;width:20px;height:20px;border-radius:1000px;background:#FFFFFF;transition:transform .15s ease;}" +
+        "#cd-insure-widget-root .ip-toggle.on .ip-toggle-thumb{transform:translateX(24px);left:0;}" +
+      "</style>" +
+      "<div class=\"ip-wrap\">" +
+        "<div class=\"ip-card " + (state === "on" ? "ip-card-on" : "") + " " + (isDisabled ? "ip-card-disabled" : "") + "\">" +
+          "<div class=\"ip-header\">" +
+            "<div class=\"ip-header-left\">" +
+              "<div class=\"ip-shield\">" + getShieldCheckSvg() + "</div>" +
+              "<div class=\"ip-header-text\">" +
+                "<div class=\"ip-safe-purchase\">Safe Purchase</div>" +
+                "<div class=\"ip-title-row\">Item protection <span class=\"ip-price-inline\">for " + currencySymbol + priceStr + "</span></div>" +
+              "</div>" +
+            "</div>" +
+            ((!isDisabled) ? "<button id=\"sp-switch-cb\" class=\"ip-toggle " + (state === "on" ? "on" : "") + "\" type=\"button\" aria-pressed=\"" + (state === "on") + "\"><span class=\"ip-toggle-thumb\"></span></button>" : "") +
+          "</div>" +
+          "<div class=\"ip-body\">" +
+            ((!isDisabled)
+              ? "<ul class=\"ip-list\"><li>Provides you compensation should the item delivered not be as described</li><li>Covers your item against theft and accidental for 30 days after you receive it</li><li>Claims are handled directly with Chubb.</li></ul>"
+              : "<p class=\"ip-not-available\">Item protection is not available for this order.</p>") +
+            "<div class=\"ip-learn\"><a href=\"#\" target=\"_blank\" rel=\"noopener\">Learn more</a></div>" +
+          "</div>" +
+          "<div class=\"ip-footer\">" +
+            "<span class=\"ip-tcs\">*T&amp;Cs apply</span>" +
+            (showLogo ? "<span class=\"ip-powered\">" + getPoweredByChubbSvg() + "</span>" : "") +
+          "</div>" +
+        "</div>" +
+      "</div>";
 
-    const btn = container.querySelector(".ip-toggle");
+    var btn = container.querySelector(".ip-toggle");
     if (btn && !isDisabled) {
-      btn.addEventListener("click", () => {
+      btn.addEventListener("click", function() {
         toggleOn = !toggleOn;
         clearHints();
         applyPremium(toggleOn);
@@ -881,31 +878,31 @@
 
   /** Get the best container to mount the widget. On contact/shipping we prefer left column (like competitor). */
   function getMountTarget() {
-    const step = hasCheckoutAPI && CheckoutAPI.step && typeof CheckoutAPI.step.getStep === "function"
+    var step = hasCheckoutAPI && CheckoutAPI.step && typeof CheckoutAPI.step.getStep === "function"
       ? CheckoutAPI.step.getStep()
       : null;
-    const isContactOrShipping = step === "contact_information" || step === "shipping_method";
+    var isContactOrShipping = step === "contact_information" || step === "shipping_method";
 
     // On Contact Information / Shipping: prefer left column (below form), same as "Worry-Free Delivery".
     if (isContactOrShipping) {
-      const form = document.querySelector("form[action*='checkout']") || document.querySelector(".checkout-body form") || document.querySelector("form");
+      var form = document.querySelector("form[action*='checkout']") || document.querySelector(".checkout-body form") || document.querySelector("form");
       if (form) {
-        const parent = form.parentNode;
+        var parent = form.parentNode;
         if (parent) return parent;
       }
-      const leftCol = document.querySelector("[class*='checkout-body']") || document.querySelector("[class*='checkout-form']") || document.querySelector("main");
+      var leftCol = document.querySelector("[class*='checkout-body']") || document.querySelector("[class*='checkout-form']") || document.querySelector("main");
       if (leftCol) return leftCol;
     }
 
     // Right column: order summary (all steps).
-    const summaryCandidates = document.querySelectorAll(
+    var summaryCandidates = document.querySelectorAll(
       ".checkout-summary, [class*='checkout-summary']"
     );
     if (summaryCandidates.length) {
-      const summary = summaryCandidates[summaryCandidates.length - 1];
+      var summary = summaryCandidates[summaryCandidates.length - 1];
       if (summary) return summary;
     }
-    const orderSummary = document.querySelector(".order-summary-dropdown-content") ||
+    var orderSummary = document.querySelector(".order-summary-dropdown-content") ||
       document.querySelector("[id*='summary'], [class*='summary']");
     if (orderSummary) return orderSummary;
     return document.body;
@@ -914,17 +911,17 @@
   function mount(retryCount) {
     try {
       retryCount = retryCount || 0;
-      const maxRetries = 12;
+      var maxRetries = 12;
       debugLog("mount() retry=" + retryCount + " CheckoutAPI=" + (hasCheckoutAPI ? "yes" : "no"));
       if (debugEnabled && hasCheckoutAPI && CheckoutAPI.store && typeof CheckoutAPI.store === "object") {
         var storeKeys = Object.keys(CheckoutAPI.store).filter(function (k) { return typeof CheckoutAPI.store[k] === "function"; });
         debugLog("CheckoutAPI.store methods: " + storeKeys.join(", "));
       }
-      let root = document.querySelector("#cd-insure-widget-root");
+      var root = document.querySelector("#cd-insure-widget-root");
       if (!root) {
-        const target = getMountTarget();
-        const step = hasCheckoutAPI && CheckoutAPI.step && typeof CheckoutAPI.step.getStep === "function" ? CheckoutAPI.step.getStep() : null;
-        const preferLeft = step === "contact_information" || step === "shipping_method";
+        var target = getMountTarget();
+        var step = hasCheckoutAPI && CheckoutAPI.step && typeof CheckoutAPI.step.getStep === "function" ? CheckoutAPI.step.getStep() : null;
+        var preferLeft = step === "contact_information" || step === "shipping_method";
         if (preferLeft && (!target || target === document.body) && retryCount < maxRetries) {
           debugLog("mount: waiting for target (retry " + (retryCount + 1) + ")");
           setTimeout(function () { mount(retryCount + 1); }, 300);
@@ -937,7 +934,7 @@
         debugLog("mount: root created");
       }
 
-      fetchSettings().then((cfg) => {
+      fetchSettings().then(function(cfg) {
       settings = cfg;
 
       if (!settings) {
@@ -981,8 +978,8 @@
       }
 
       if (hasCheckoutAPI && CheckoutAPI.store && CheckoutAPI.store.getPrices) {
-        const prices = CheckoutAPI.store.getPrices();
-        const products =
+        var prices = CheckoutAPI.store.getPrices();
+        var products =
           CheckoutAPI.summary && CheckoutAPI.summary.getProductList
             ? CheckoutAPI.summary.getProductList()
             : [];
@@ -1013,8 +1010,8 @@
       }
 
       if (hasCheckoutAPI && CheckoutAPI.store.onPricesChange) {
-        CheckoutAPI.store.onPricesChange((newPrices) => {
-          const products =
+        CheckoutAPI.store.onPricesChange(function(newPrices) {
+          var products =
             CheckoutAPI.summary && CheckoutAPI.summary.getProductList
               ? CheckoutAPI.summary.getProductList()
               : [];
