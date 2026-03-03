@@ -4,7 +4,8 @@
  * Uses schema.postgres.prisma for Postgres (e.g. Vercel).
  * No-op when DATABASE_URL is SQLite or unset (local dev).
  *
- * Uses 'db push' instead of 'migrate deploy' to avoid migration history issues.
+ * IMPORTANT: Only uses 'db push', NEVER 'migrate deploy'.
+ * This avoids migration history table issues and keeps PostgreSQL schema clean.
  */
 const path = require("path");
 const { execSync } = require("child_process");
@@ -34,7 +35,7 @@ const cwd = path.join(__dirname, "..");
 
 console.log("[prisma-migrate-deploy] Schema path:", schemaPath);
 console.log("[prisma-migrate-deploy] Working directory:", cwd);
-console.log("[prisma-migrate-deploy] Running prisma db push...");
+console.log("[prisma-migrate-deploy] Running prisma db push (ONLY method, no migrate deploy fallback)...");
 
 try {
   execSync(`npx prisma db push --skip-generate --schema=${schemaPath}`, {
@@ -49,21 +50,6 @@ try {
   console.error("[prisma-migrate-deploy] Error code:", error.code);
   console.error("[prisma-migrate-deploy] Error status:", error.status);
   console.error("[prisma-migrate-deploy] Error message:", error.message);
-  console.error("[prisma-migrate-deploy] Trying migrate deploy as fallback...");
-
-  try {
-    execSync(`npx prisma migrate deploy --schema=${schemaPath}`, {
-      stdio: "inherit",
-      cwd: cwd,
-      env: process.env,
-    });
-    console.log("[prisma-migrate-deploy] ✓ migrate deploy succeeded");
-    process.exit(0);
-  } catch (fallbackError) {
-    console.error("[prisma-migrate-deploy] ✗ migrate deploy also failed:");
-    console.error("[prisma-migrate-deploy] Error code:", fallbackError.code);
-    console.error("[prisma-migrate-deploy] Error status:", fallbackError.status);
-    console.error("[prisma-migrate-deploy] Error message:", fallbackError.message);
-    process.exit(1);
-  }
+  console.error("[prisma-migrate-deploy] ABORTING - NOT using migrate deploy fallback (only db push allowed)");
+  process.exit(1);
 }
